@@ -12,10 +12,10 @@
 //#include <linux/if.h>
 #include <sys/ioctl.h>
 #include <net/if.h>  
-
+#include "main.h"
 int main ()
 {
-	
+	int countLoop = 200;
 	printf("heloo nigga !\n\n");
 	int soc = -1;
 	struct sockaddr_in addrLocal;
@@ -55,11 +55,42 @@ int main ()
 	/*						// раскоментировать это для  отлавливание всех пакетов даже не для нашего мака
 	struct ifreq interface;
 	interface.ifr_flags |= IFF_PROMISC;
-	ioctl(soc,SIOCSIFFLAGS,&interface);
+	errno = 0;
+	if (ioctl(soc,SIOCSIFFLAGS,&interface) < 0)
+	{
+		
+		printf (" eerror in ioctl  error num = %d \n" , errno);
+		close(soc);
+	}
 	*/
+	char buf[0xffff] = {0,};
+	int rc = 0;
+	while (countLoop--)
+	{
+		rc = 0;
+		rc = recvfrom(soc,buf,sizeof(buf),0,0,0);
+		if (rc) packetHandler(buf, rc);
 
-	printf("over\n");
-	
+
+		
+	}
+
+
+
+
+
+
+
+
+	printf("over\n");	
 	close(soc);
 
+}
+
+//**************************************************************************************
+
+
+void packetHandler(char *buf, int bufLen)
+{
+	printf ("got packet, size = %d", bufLen);
 }
