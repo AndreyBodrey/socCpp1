@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "if_ether.h": "c"
+        "if_ether.h": "c",
+        "errno.h": "c",
+        "features.h": "c"
     }
 }

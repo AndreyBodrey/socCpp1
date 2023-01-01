@@ -5,11 +5,17 @@
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <strings.h>
+#include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <errno.h>
+//#include <linux/if.h>
+#include <sys/ioctl.h>
+#include <net/if.h>  
 
 int main ()
 {
+	
 	printf("heloo nigga !\n\n");
 	int soc = -1;
 	struct sockaddr_in addrLocal;
@@ -17,11 +23,11 @@ int main ()
 
 	bzero(&addrLocal, sizeof(addrLocal));
 	addrLocal.sin_family = AF_PACKET;
-	addrLocal.sin_port = 0;
+	addrLocal.sin_port = htons(0);
 	addrLocal.sin_addr.s_addr = inet_addr(ipAdr);
 
 
-	soc = socket(  AF_PACKET, SOCK_RAW, htons(ETH_P_ALL) );   // works only whith root user
+	soc = socket(  PF_PACKET, SOCK_PACKET, htons(ETH_P_ALL) );   // works only whith root user
 
 	if (soc > 0) printf ("socket crated\n");
 	else 
@@ -32,12 +38,25 @@ int main ()
 	// now bind to local IP
 
 	///bind(soc, &addrLocal, sizeof(addrLocal));
-	if ( bind(soc, (struct sockaddr*)&addrLocal, sizeof(addrLocal)) != 0)
+	
+	/*if ( bind(soc, (struct sockaddr*)&addrLocal, sizeof(addrLocal)) != 0)
 	{		
-		printf ("bind() error!");
+		printf ("bind() error!  ");
+		printf("%d\n", errno);
 		close(soc);
 		return 1;
-	}
+	}*/
+				///   enp7s0 name ehernet inteface
+	
+	int rc = setsockopt(soc,SOL_SOCKET, SO_BINDTODEVICE,"enp7s0\x00", strlen("enp7s0\x00") + 1);
+	printf ("%d \n" , rc);
+	strlen(" ");
+
+	/*						// раскоментировать это для  отлавливание всех пакетов даже не для нашего мака
+	struct ifreq interface;
+	interface.ifr_flags |= IFF_PROMISC;
+	ioctl(soc,SIOCSIFFLAGS,&interface);
+	*/
 
 	printf("over\n");
 	
