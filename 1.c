@@ -13,6 +13,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>  
 #include "main.h"
+
 #include <linux/ip.h>
 #include <netinet/ether.h>
 
@@ -71,7 +72,8 @@ int main ()
 	{
 		reciveBytes = 0;
 		reciveBytes = recvfrom(soc,buf,sizeof(buf),0,0,0);
-		if (reciveBytes) packetHandler(buf, reciveBytes);
+		if (reciveBytes) packWork(buf, reciveBytes);
+		//packetHandler(buf, reciveBytes);
 	}
 
 
@@ -101,3 +103,18 @@ void packetHandler(char *buf, int bufLen)
 	buf[bufLen] = 0;
 	printf ("\n");
 }
+//----------------------------------------------------------------------
+
+int packWork(char * bufer, int len)
+{
+    static int l = 0;
+    struct ethhdr *ethernetHeader = {0,};
+    struct iphdr *ipH = {0,};
+    ethernetHeader = (struct ethhdr *)bufer;
+    ipH = (struct iphdr*)(bufer + sizeof(struct ethhdr));
+    
+    if (ipH->protocol == 6) 
+        printf ("got tcp pack %d, %d\n", ++l, len);
+
+}
+//-----------------------------------------------------------------------
