@@ -48,19 +48,8 @@ int main ()
 		printf("error to cerate socket!\n");
 		return 1;
 	}
-	// now bind to local IP
 
-	///bind(soc, &addrLocal, sizeof(addrLocal));
-	
-	/*if ( bind(soc, (struct sockaddr*)&addrLocal, sizeof(addrLocal)) != 0)
-	{		
-		printf ("bind() error!  ");
-		printf("%d\n", errno);
-		close(soc);
-		return 1;
-	}*/
-				///   enp7s0 name ehernet inteface
-	
+			//enp4s0 spirovo
 	int rc = setsockopt(soc,SOL_SOCKET, SO_BINDTODEVICE,"enp7s0\x00", strlen("enp7s0\x00") + 1);
 	printf ("%d \n" , rc);
 	strlen(" ");
