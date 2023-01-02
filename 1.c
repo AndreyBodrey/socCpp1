@@ -13,8 +13,21 @@
 #include <sys/ioctl.h>
 #include <net/if.h>  
 #include "main.h"
+#include <linux/ip.h>
+#include <netinet/ether.h>
+
+
+
+
 int main ()
 {
+	char buf[0xffff] = {0,};
+
+	struct ehter_header * ehH = (struct ehter_header *) buf;
+	
+	struct iphdr * ipH = (struct iphdr *)(buf + 14);
+
+
 	int countLoop = 200;
 	printf("heloo nigga !\n\n");
 	int soc = -1;
@@ -63,16 +76,13 @@ int main ()
 		close(soc);
 	}
 	*/
-	char buf[0xffff] = {0,};
-	int rc = 0;
+	
+	int reciveBytes = 0;
 	while (countLoop--)
 	{
-		rc = 0;
-		rc = recvfrom(soc,buf,sizeof(buf),0,0,0);
-		if (rc) packetHandler(buf, rc);
-
-
-		
+		reciveBytes = 0;
+		reciveBytes = recvfrom(soc,buf,sizeof(buf),0,0,0);
+		if (reciveBytes) packetHandler(buf, reciveBytes);
 	}
 
 
@@ -92,5 +102,13 @@ int main ()
 
 void packetHandler(char *buf, int bufLen)
 {
-	printf ("got packet, size = %d", bufLen);
+	printf ("got packet, size = %d \n", bufLen);
+	
+	for ( int i = 0; i < bufLen; i++)
+	{
+		printf ("%hhx ", buf[i]);
+		buf[i] = 0;
+	}
+	buf[bufLen] = 0;
+	printf ("\n");
 }

@@ -2,6 +2,8 @@
     "files.associations": {
         "if_ether.h": "c",
         "errno.h": "c",
-        "features.h": "c"
+        "features.h": "c",
+        "ip.h": "c",
+        "ether.h": "c"
     }
 }
