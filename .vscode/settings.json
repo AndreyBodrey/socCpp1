@@ -5,6 +5,7 @@
         "features.h": "c",
         "ip.h": "c",
         "ether.h": "c",
-        "strings.h": "c"
+        "strings.h": "c",
+        "in.h": "c"
     }
 }

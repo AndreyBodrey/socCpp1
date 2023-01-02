@@ -17,12 +17,12 @@
 #include <linux/ip.h>
 #include <netinet/ether.h>
 
-
+#define PACK_BUF_LEN 0xffff
 
 
 int main ()
 {
-	char buf[0xffff] = {0,};
+	char buf[PACK_BUF_LEN] = {0,};
 
 	struct ehter_header * ehH = (struct ehter_header *) buf;
 	
@@ -72,8 +72,8 @@ int main ()
 	{
 		reciveBytes = 0;
 		reciveBytes = recvfrom(soc,buf,sizeof(buf),0,0,0);
-		if (reciveBytes) packWork(buf, reciveBytes);
-		//packetHandler(buf, reciveBytes);
+		// 20 минимальный размер пакета
+		if (reciveBytes > 20 && reciveBytes < PACK_BUF_LEN)	packetHandler(buf, reciveBytes);
 	}
 
 
@@ -93,28 +93,46 @@ int main ()
 
 void packetHandler(char *buf, int bufLen)
 {
-	printf ("got packet, size = %d \n", bufLen);
-	
-	for ( int i = 0; i < bufLen; i++)
-	{
-		printf ("%hhx ", buf[i]);
-		buf[i] = 0;
-	}
-	buf[bufLen] = 0;
-	printf ("\n");
-}
-//----------------------------------------------------------------------
+	//printf ("got packet, size = %d \n", bufLen);
 
-int packWork(char * bufer, int len)
+	int typeProtocol = packFiltr(buf,bufLen);
+	if (!typeProtocol) return clearBuf(buf);
+
+	if (typeProtocol == IPPROTO_IGMP) checkIgmp(buf, bufLen);
+
+
+}
+//-------------------------------------------------------------------------------------
+
+void checkIgmp(char *buf, int bufLen)
+{
+	//  if qwery for us, then send addmembership
+}
+
+//-------------------------------------------------------------------------------------
+
+struct ethhdr * packFiltr(char * bufer, int len)
 {
     static int l = 0;
-    struct ethhdr *ethernetHeader = {0,};
-    struct iphdr *ipH = {0,};
+    struct ethhdr *ethernetHeader;
+    struct iphdr *ipH ;
     ethernetHeader = (struct ethhdr *)bufer;
     ipH = (struct iphdr*)(bufer + sizeof(struct ethhdr));
     
-    if (ipH->protocol == 6) 
-        printf ("got tcp pack %d, %d\n", ++l, len);
-
+    if (ipH->protocol == IPPROTO_UDP || ipH->protocol == IPPROTO_IGMP) return ipH;
+       
+	return 0;
 }
 //-----------------------------------------------------------------------
+
+void clearBuf(char * buff)
+{
+	int i = PACK_BUF_LEN;
+	while(i--) 
+	{
+		*buff = 0;
+		++buff;
+	}
+}
+//----------------------------------------------------------------------
+
