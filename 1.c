@@ -111,7 +111,7 @@ void checkIgmp(char *buf, int bufLen)
 
 //-------------------------------------------------------------------------------------
 
-struct ethhdr * packFiltr(char * bufer, int len)
+int packFiltr(char * bufer, int len)
 {
     static int l = 0;
     struct ethhdr *ethernetHeader;
@@ -119,7 +119,7 @@ struct ethhdr * packFiltr(char * bufer, int len)
     ethernetHeader = (struct ethhdr *)bufer;
     ipH = (struct iphdr*)(bufer + sizeof(struct ethhdr));
     
-    if (ipH->protocol == IPPROTO_UDP || ipH->protocol == IPPROTO_IGMP) return ipH;
+    if (ipH->protocol == IPPROTO_UDP || ipH->protocol == IPPROTO_IGMP) return ipH->protocol;
        
 	return 0;
 }

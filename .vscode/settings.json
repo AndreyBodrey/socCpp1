@@ -6,6 +6,7 @@
         "ip.h": "c",
         "ether.h": "c",
         "strings.h": "c",
-        "in.h": "c"
+        "in.h": "c",
+        "stdio.h": "c"
     }
 }
