@@ -136,3 +136,28 @@ void clearBuf(char * buff)
 }
 //----------------------------------------------------------------------
 
+char * serchIP()
+{
+	/* 
+	// вот эот кусок получает список локальных айпи адесов
+	// работает не удалать!!!
+  int i,n,s;
+  struct ifreq ifr[100];
+  struct ifconf ifconf;
+  struct sockaddr_in *sin;
+ 
+  s=socket(AF_INET, SOCK_DGRAM, 0);
+  ifconf.ifc_len=sizeof(ifr);
+  ifconf.ifc_req=ifr;
+  ioctl(s, SIOCGIFCONF, &ifconf);
+  close(s);
+ 
+  n=ifconf.ifc_len/sizeof(struct ifreq);
+  for(i=0;i<n;i++) {
+    sin=(struct sockaddr_in *) (&ifr[i].ifr_addr);
+    printf("%s -> %s\n",ifr[i].ifr_name,inet_ntoa(sin->sin_addr));
+  }
+	
+	*/
+
+}
