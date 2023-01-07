@@ -202,7 +202,7 @@ uint32_t serchIP(char * ipLoc)
 
 //------------------------------------------------------------------------------------
 
-void igmpJoy()
+void igmpJoy(void)
 {
 	//sending igmp membership report
 	
