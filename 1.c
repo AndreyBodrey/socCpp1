@@ -22,7 +22,7 @@
 
 int main ()
 {
-	char ipLockalStrFormat[20];
+	char ipLockalStrFormat[20]; 
 	uint32_t ipLockalInetFormat = serchIP(ipLockalStrFormat);
 	 // допустим айпи мы нашли и получили
 
@@ -181,22 +181,6 @@ uint32_t serchIP(char * ipLoc)
 	//возвращаем йапи в типе int
   return sin->sin_addr.s_addr;
 	
-
-//var2 not tested
-/* 
-#include   "unp.h"
- #include    <sys/utsname.h>
- char **  my_addrs(int *addrtype)
- {
-    struct hostent *hptr;
-    struct utsname myname;
-    if (uname(&myname) < 0)    return (NULL);
- if ( (hptr = gethostbyname(myname.nodename)) == NULL)
- return (NULL);
-  *addrtype = hptr->h_addrtype;
-   return (hptr->h_addr_list);
- }
- */
 
 }
 
