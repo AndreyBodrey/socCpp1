@@ -175,8 +175,10 @@ int packFiltr(char * bufer, int len)
 			sprintf((packetInfo + strlen(packetInfo))," sorcePort %d ", htons(udpHdr->uh_sport));
 			logging(packetInfo);
 			char *udpData = bufer + sizeof(struct ethhdr) + ipH->ihl* 4 + sizeof(struct udphdr);
-			int udpDataLen = udpHdr->len - sizeof(struct udphdr);
-			//writeDataToFile( udpData,  udpDataLen);
+			int udpDataLen = ntohs(udpHdr->len) - sizeof(struct udphdr);
+			printf("udpDatalen %d \n", udpDataLen );
+			
+			writeDataToFile( udpData,  udpDataLen);
 			break;
 		case IPPROTO_IGMP:
 			logging("got IGMP pack");
@@ -204,10 +206,10 @@ int packFiltr(char * bufer, int len)
 			//logging("got TCP pack");
 			break;	
 		case IPPROTO_ICMP:
-			logging("got icmp pack");
+			//logging("got icmp pack");
 			break;		
 		default:
-			logging("got some packet");
+			//logging("got some packet");
 	}
 
 
@@ -216,7 +218,7 @@ int packFiltr(char * bufer, int len)
        
 	return 0;
 }
-//-----------------------------------------------------------------------
+//-------------------------------------------------------------------------------------
 
 void clearBuf(char * buff)
 {
@@ -227,7 +229,7 @@ void clearBuf(char * buff)
 		++buff;
 	}
 }
-//----------------------------------------------------------------------
+//-------------------------------------------------------------------------------------
 
 uint32_t serchIP(char * ipLoc)
 {
@@ -266,7 +268,7 @@ uint32_t serchIP(char * ipLoc)
 	
 
 }
-//------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------
 
 int igmpJoy(void)
 {
@@ -330,7 +332,7 @@ void logging(const char* str)
 	printf("%s",str);
 	printf("\n");
 }
-//--------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------
 
 void writeDataToFile(char * data, int len)
 {
@@ -352,6 +354,7 @@ void writeDataToFile(char * data, int len)
 	}
 	lenFile += len;
 	fwrite(data, sizeof(char), len, dataFile);
-	close(dataFile);
-
+	fwrite("\n\n\n", sizeof(char), 7, dataFile);
+	fclose(dataFile);
 }
+//-------------------------------------------------------------------------------------
