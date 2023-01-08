@@ -30,12 +30,16 @@
 //global varibles
 	int countLoop = 20000;
 	char ipLockalStrFormat[20]; 
-	uint32_t ipLockalInetFormat;
+	in_addr_t ipLockal_int;
+	in_addr_t ipIgmpGroup_int;
+	struct in_addr ipIgmpGroup_inadr;
 
 int main ()
 {
 
-	ipLockalInetFormat = serchIP(ipLockalStrFormat);
+	ipLockal_int = serchIP(ipLockalStrFormat);
+	inet_pton(AF_INET, MC_GROUP_ADDRES, &ipIgmpGroup_inadr);
+	ipIgmpGroup_int = ipIgmpGroup_inadr.s_addr;
 	 // допустим айпи мы нашли и получили
 
 	
@@ -133,8 +137,10 @@ void checkUdp(char *buf, int bufLen)
 
 int packFiltr(char * bufer, int len)
 {
+	time_t timeNow = time(NULL);
+	struct tm * timeS = localtime(&timeNow);
 	char packetInfo[200] = {0,};
-	char adr[20] = {0,};
+	//char adr[20] = {0,};
     static int l = 0;
     struct ethhdr *ethernetHeader;
     struct iphdr *ipH ;
@@ -152,29 +158,46 @@ int packFiltr(char * bufer, int len)
 	switch(ipH->protocol)
 	{
 		case IPPROTO_UDP:
-			//logging("got UDP pack");
+			//	отсеиваем локальные пакеты с 127.х.х.х
+			if (*((uint8_t*) &sorceAdr.s_addr) == 127) break;
+			//если пакет не от группы на которую подписались, то на хер
+			//if (sorceAdr.s_addr != ipIgmpGroup_int) break;
 
-				strcpy(packetInfo, "UDP Lenght ");
-				sprintf((packetInfo + strlen(packetInfo)),"% d : ", htons(udpHdr->len));
-				strcpy (packetInfo + strlen(packetInfo), " from ");				
-				strcpy (packetInfo + strlen(packetInfo), inet_ntoa(sorceAdr));
-				strcpy (packetInfo + strlen(packetInfo), " to ");
-				strcpy (packetInfo + strlen(packetInfo), inet_ntoa(destAdr));
-				sprintf((packetInfo + strlen(packetInfo))," destPort %d ", htons(udpHdr->uh_dport));
-				sprintf((packetInfo + strlen(packetInfo))," sorcePort %d ", htons(udpHdr->uh_sport));
-				logging(packetInfo);
+			sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
+								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday);
+			strcpy(packetInfo + strlen(packetInfo), "UDP Lenght ");
+			sprintf((packetInfo + strlen(packetInfo)),"% d : ", htons(ipH->tot_len));
+			strcpy (packetInfo + strlen(packetInfo), " from ");				
+			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(sorceAdr));
+			strcpy (packetInfo + strlen(packetInfo), " to ");
+			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(destAdr));
+			sprintf((packetInfo + strlen(packetInfo))," destPort %d ", htons(udpHdr->uh_dport));
+			sprintf((packetInfo + strlen(packetInfo))," sorcePort %d ", htons(udpHdr->uh_sport));
+			logging(packetInfo);
+			char *udpData = bufer + sizeof(struct ethhdr) + ipH->ihl* 4 + sizeof(struct udphdr);
+			int udpDataLen = udpHdr->len - sizeof(struct udphdr);
+			//writeDataToFile( udpData,  udpDataLen);
 			break;
 		case IPPROTO_IGMP:
 			logging("got IGMP pack");
+			sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
+								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday);
+			strcpy(packetInfo, "Lenght ");
+			sprintf((packetInfo + strlen(packetInfo)),"%d : ", htons(ipH->tot_len));
 			if (igmpHdr->igmp_type == IGMP_V2_MEMBERSHIP_REPORT)
+			{				
+				strcpy (packetInfo + strlen(packetInfo), "IGMP_MEMBERSHIP_REPORT GROUP ");								
+			}
+			if (igmpHdr->igmp_type == IGMP_MEMBERSHIP_QUERY)
 			{
-				strcpy(packetInfo, "Lenght ");
-				sprintf((packetInfo + strlen(packetInfo)),"% d : ", htons(ipH->tot_len));
-				strcpy (packetInfo + strlen(packetInfo), "IGMP_V2_MEMBERSHIP_REPORT GROUP ");				
-				strcpy (adr, inet_ntoa(igmpHdr->igmp_group));
-				strcpy (packetInfo + strlen(packetInfo), adr);
+				strcpy (packetInfo + strlen(packetInfo), "IGMP_MEMBERSHIP_QUERY ");
+			}
+			if (igmpHdr->igmp_type == IGMP_V2_LEAVE_GROUP)
+			{
+				strcpy (packetInfo + strlen(packetInfo), "IGMP_LEAVE_GROUP ");
 			}
 
+			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(igmpHdr->igmp_group));
 			logging(packetInfo);
 			break;
 		case IPPROTO_TCP:
@@ -297,19 +320,38 @@ void quit(int soc1, int soc2, char * message)
 {
 	if (soc1 > 0) close(soc1);
 	if (soc2 > 0) close(soc2);
-	if (*message != '0') printf(message);
+	printf("%s", message);
 	exit(0);
 }
 //-------------------------------------------------------------------------------------
 
 void logging(const char* str)
 {
-	printf(str);
+	printf("%s",str);
 	printf("\n");
 }
 //--------------------------------------------------------------------------------------
 
-void writeDataToFile
+void writeDataToFile(char * data, int len)
 {
+	const int  MAX_FILE_SIZE = 100000;
+	char fileName[20];
+	static int numFile = 0;
+	static int lenFile = 0;
+	if (lenFile + len > MAX_FILE_SIZE) 
+	{
+		++numFile;
+		lenFile = 0;
+	}
+	sprintf(fileName,"dataFile_%d", numFile);
+	FILE *dataFile = fopen(fileName, "a");	// for writing at end of file)
+	if (dataFile == NULL)
+	{
+		logging("file open error");
+		return;
+	}
+	lenFile += len;
+	fwrite(data, sizeof(char), len, dataFile);
+	close(dataFile);
 
 }

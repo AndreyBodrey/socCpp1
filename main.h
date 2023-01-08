@@ -17,3 +17,4 @@ int igmpJoy();
 void findNetCardName(char * name);
 void quit(int soc1, int soc2, char * str);
 void logging(const char* str);
+void writeDataToFile(char * data, int len);
