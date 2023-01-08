@@ -13,5 +13,7 @@ void checkUdp(char *buf, int bufLen);
 
 void checkUdp(char *buf, int bufLen);
 uint serchIP(char * );
-void igmpJoy();
+int igmpJoy();
 void findNetCardName(char * name);
+void quit(int soc1, int soc2, char * str);
+void logging(const char* str);

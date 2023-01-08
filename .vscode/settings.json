@@ -7,6 +7,9 @@
         "ether.h": "c",
         "strings.h": "c",
         "in.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "igmp.h": "c",
+        "ioctl.h": "c",
+        "udp.h": "c"
     }
 }

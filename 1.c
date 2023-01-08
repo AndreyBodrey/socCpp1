@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <linux/if_ether.h> 
@@ -9,6 +10,10 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <errno.h>
+#include <netinet/igmp.h>
+#include <netinet/udp.h>
+#include <time.h>
+
 //#include <linux/if.h>
 #include <sys/ioctl.h>
 #include <net/if.h>  
@@ -19,48 +24,53 @@
 
 #define PACK_BUF_LEN 0xffff
 
+#define MC_GROUP_ADDRES "239.255.10.101"
+#define MC_GROUP_PORT 2015
+
+//global varibles
+	int countLoop = 20000;
+	char ipLockalStrFormat[20]; 
+	uint32_t ipLockalInetFormat;
 
 int main ()
 {
-	char ipLockalStrFormat[20]; 
-	uint32_t ipLockalInetFormat = serchIP(ipLockalStrFormat);
+
+	ipLockalInetFormat = serchIP(ipLockalStrFormat);
 	 // допустим айпи мы нашли и получили
 
 	
-	char buf[PACK_BUF_LEN] = {0,};
-	
-	struct ehter_header * ehH = (struct ehter_header *) buf;
-	
+	char buf[PACK_BUF_LEN] = {0,};	
+	struct ehter_header * ehH = (struct ehter_header *) buf;	
 	struct iphdr * ipH = (struct iphdr *)(buf + 14);
-
-
-	int countLoop = 20000;
-	printf("heloo nigga !\n\n");
 	int soc = -1;
+	int socIgmp = -1;
 	struct sockaddr_in addrLocal;
-	char *ipAdr = "192.168.0.112";   //hardcoded sheet, you must change to your IP
 
-	bzero(&addrLocal, sizeof(addrLocal));
-	addrLocal.sin_family = AF_PACKET;
-	addrLocal.sin_port = htons(0);
-	addrLocal.sin_addr.s_addr = inet_addr(ipAdr);
+	
+
+	printf("hello nigga !\n\n");
 
 
+	serchIP(ipLockalStrFormat);
+
+
+
+	socIgmp = igmpJoy();
+	if ( socIgmp < 0 ) quit(soc, socIgmp,"igmp soc not created\n"); //error
+
+	
 	soc = socket(  PF_PACKET, SOCK_PACKET, htons(ETH_P_ALL) );   // works only whith root user
-
+	
 	if (soc > 0) printf ("socket crated\n");
-	else 
-	{
-		printf("error to cerate socket!\n");
-		return 1;
-	}
+	else  quit(soc, socIgmp,"sniff soc not created\n");
 
 			//enp4s0 spirovo
 	char netCardName[20] = {0,};
 	findNetCardName(netCardName);
 	int rc = setsockopt(soc,SOL_SOCKET, SO_BINDTODEVICE, netCardName, strlen(netCardName) + 1);
-
+	if (rc != 0) quit(soc, socIgmp,"setsocopt not bind\n");
 	printf ("setSock Opt %d, error %d \n" , rc, errno);
+
 
 
 	/*	// раскоментировать это для  отлавливание всех пакетов даже не для нашего мака
@@ -74,7 +84,7 @@ int main ()
 		close(soc);
 	}
 	*/
-	
+
 
 	while (countLoop--)
 	{
@@ -117,19 +127,69 @@ void checkIgmp(char *buf, int bufLen)
 void checkUdp(char *buf, int bufLen)
 {
 	//   checking dup packets here
-//	printf("ressived UDP pack \n");
+	printf("ressived UDP pack \n");
 }
 //-------------------------------------------------------------------------------------
 
 int packFiltr(char * bufer, int len)
 {
+	char packetInfo[200] = {0,};
+	char adr[20] = {0,};
     static int l = 0;
     struct ethhdr *ethernetHeader;
     struct iphdr *ipH ;
-    ethernetHeader = (struct ethhdr *)bufer;
+	struct igmp *igmpHdr;
+	struct udphdr *udpHdr;
+	struct in_addr sorceAdr;
+	struct in_addr destAdr;
+	// получаем адреса заголовков
+    ethernetHeader = (struct ethhdr*)bufer;
     ipH = (struct iphdr*)(bufer + sizeof(struct ethhdr));
+	igmpHdr = (struct igmp*)(bufer + sizeof(struct ethhdr) + ipH->ihl* 4);
+	udpHdr = (struct udphdr*)(bufer + sizeof(struct ethhdr) + ipH->ihl* 4);
+	sorceAdr.s_addr = ipH->saddr;
+	destAdr.s_addr = ipH->daddr;
+	switch(ipH->protocol)
+	{
+		case IPPROTO_UDP:
+			//logging("got UDP pack");
+
+				strcpy(packetInfo, "UDP Lenght ");
+				sprintf((packetInfo + strlen(packetInfo)),"% d : ", htons(udpHdr->len));
+				strcpy (packetInfo + strlen(packetInfo), " from ");				
+				strcpy (packetInfo + strlen(packetInfo), inet_ntoa(sorceAdr));
+				strcpy (packetInfo + strlen(packetInfo), " to ");
+				strcpy (packetInfo + strlen(packetInfo), inet_ntoa(destAdr));
+				sprintf((packetInfo + strlen(packetInfo))," destPort %d ", htons(udpHdr->uh_dport));
+				sprintf((packetInfo + strlen(packetInfo))," sorcePort %d ", htons(udpHdr->uh_sport));
+				logging(packetInfo);
+			break;
+		case IPPROTO_IGMP:
+			logging("got IGMP pack");
+			if (igmpHdr->igmp_type == IGMP_V2_MEMBERSHIP_REPORT)
+			{
+				strcpy(packetInfo, "Lenght ");
+				sprintf((packetInfo + strlen(packetInfo)),"% d : ", htons(ipH->tot_len));
+				strcpy (packetInfo + strlen(packetInfo), "IGMP_V2_MEMBERSHIP_REPORT GROUP ");				
+				strcpy (adr, inet_ntoa(igmpHdr->igmp_group));
+				strcpy (packetInfo + strlen(packetInfo), adr);
+			}
+
+			logging(packetInfo);
+			break;
+		case IPPROTO_TCP:
+			//logging("got TCP pack");
+			break;	
+		case IPPROTO_ICMP:
+			logging("got icmp pack");
+			break;		
+		default:
+			logging("got some packet");
+	}
+
+
     
-    if (ipH->protocol == IPPROTO_UDP || ipH->protocol == IPPROTO_IGMP) return ipH->protocol;
+   // if (ipH->protocol == IPPROTO_UDP || ipH->protocol == IPPROTO_IGMP) return ipH->protocol;
        
 	return 0;
 }
@@ -183,13 +243,28 @@ uint32_t serchIP(char * ipLoc)
 	
 
 }
-
 //------------------------------------------------------------------------------------
 
-void igmpJoy(void)
+int igmpJoy(void)
 {
-	//sending igmp membership report
-	
+	int socI = socket( AF_INET, SOCK_DGRAM, 0 );
+	if ( socI < 0 ) return 0; //error
+
+	const int optval = 1;
+	setsockopt(socI, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	struct sockaddr_in addr;
+	bzero(&addr, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(MC_GROUP_PORT);
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);	
+	//bind(socIgmp, (struct sockaddr*)&addr, sizeof(addr));
+	struct ip_mreq mreq;
+	inet_aton(MC_GROUP_ADDRES, &(mreq.imr_multiaddr));
+	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+		// эта хрень посылает MEMBERSHIP репорт 
+	setsockopt(socI, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+	return socI;
+ 
 }
 //-------------------------------------------------------------------------------------
 
@@ -215,4 +290,26 @@ void findNetCardName(char * name)
 			}					//выбирает первую что не localhost 127.0.0.1	
 	}
 	strcpy(name, (ni[selItem].if_name));	// переносим имя сетевухи в выходнуй массив
+}
+//-------------------------------------------------------------------------------------
+
+void quit(int soc1, int soc2, char * message)
+{
+	if (soc1 > 0) close(soc1);
+	if (soc2 > 0) close(soc2);
+	if (*message != '0') printf(message);
+	exit(0);
+}
+//-------------------------------------------------------------------------------------
+
+void logging(const char* str)
+{
+	printf(str);
+	printf("\n");
+}
+//--------------------------------------------------------------------------------------
+
+void writeDataToFile
+{
+
 }
