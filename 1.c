@@ -28,7 +28,7 @@
 #define MC_GROUP_PORT 2015
 
 //global varibles
-	int countLoop = 20000;
+	int countLoop = 2000000;
 	char ipLockalStrFormat[20]; 
 	in_addr_t ipLockal_int;
 	in_addr_t ipIgmpGroup_int;
@@ -159,18 +159,18 @@ int packFiltr(char * bufer, int len)
 	{
 		case IPPROTO_UDP:
 			//	отсеиваем локальные пакеты с 127.х.х.х
-			if (*((uint8_t*) &sorceAdr.s_addr) == 127) break;
+			//if (*((uint8_t*) &sorceAdr.s_addr) == 127) break;
 			//если пакет не от группы на которую подписались, то на хер
-			//if (sorceAdr.s_addr != ipIgmpGroup_int) break;
+			if (destAdr.s_addr != ipIgmpGroup_int) break;
 
 			sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
 								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday);
 			strcpy(packetInfo + strlen(packetInfo), "UDP Lenght ");
 			sprintf((packetInfo + strlen(packetInfo)),"% d : ", htons(ipH->tot_len));
 			strcpy (packetInfo + strlen(packetInfo), " from ");				
-			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(sorceAdr));
-			strcpy (packetInfo + strlen(packetInfo), " to ");
 			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(destAdr));
+			strcpy (packetInfo + strlen(packetInfo), " to ");
+			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(sorceAdr));
 			sprintf((packetInfo + strlen(packetInfo))," destPort %d ", htons(udpHdr->uh_dport));
 			sprintf((packetInfo + strlen(packetInfo))," sorcePort %d ", htons(udpHdr->uh_sport));
 			logging(packetInfo);
@@ -336,7 +336,7 @@ void logging(const char* str)
 
 void writeDataToFile(char * data, int len)
 {
-	const int  MAX_FILE_SIZE = 100000;
+	const int  MAX_FILE_SIZE = 10000000;
 	char fileName[20];
 	static int numFile = 0;
 	static int lenFile = 0;
