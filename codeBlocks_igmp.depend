@@ -1,16 +1,20 @@
 # depslib dependency file v1.0
-1673700203 source:/home/drey/test/sock/socCpp1/startup.c
+1673723630 source:/home/drey/test/sock/socCpp1/startup.c
+	"main.h"
 	"startup.h"
+	<sys/types.h>
+	<sys/socket.h>
+	<netinet/in.h>
+	<arpa/inet.h>
 
-1673700220 source:/home/drey/test/sock/socCpp1/igmp.c
+1673722814 source:/home/drey/test/sock/socCpp1/igmp.c
+	"startup.h"
+	"igmp.h"
 
-1673700510 /home/drey/test/sock/socCpp1/main.h
+1673723289 /home/drey/test/sock/socCpp1/main.h
 	"stdint.h"
 
-1673700203 /home/drey/test/sock/socCpp1/startup.h
-	"main.h"
-
-1673700453 source:/home/drey/test/sock/socCpp1/1.c
+1673723289 /home/drey/test/sock/socCpp1/startup.h
 	<stdio.h>
 	<stdlib.h>
 	<sys/types.h>
@@ -28,9 +32,29 @@
 	<time.h>
 	<sys/ioctl.h>
 	<net/if.h>
-	<linux/ip.h>
+
+1673723289 source:/home/drey/test/sock/socCpp1/1.c
+	<stdio.h>
+	<stdlib.h>
+	<sys/types.h>
+	<sys/socket.h>
+	<linux/if_ether.h>
+	<net/ethernet.h>
+	<netinet/in.h>
+	<netinet/ip.h>
+	<strings.h>
+	<string.h>
+	<arpa/inet.h>
+	<unistd.h>
+	<errno.h>
+	<netinet/udp.h>
+	<time.h>
+	"linux/igmp.h"
+	<sys/ioctl.h>
 	<netinet/ether.h>
 	"main.h"
+	"startup.h"
+	"igmp.h"
 	<sys/socket.h>
 	<sys/types.h>
 	<netinet/ip.h>
@@ -40,4 +64,17 @@
 	<stdlib.h>
 	<unistd.h>
 	<linux/igmp.h>
+
+1673720302 /home/drey/test/sock/socCpp1/igmp.h
+	<sys/socket.h>
+	<sys/types.h>
+	<netinet/ip.h>
+	<arpa/inet.h>
+	<string.h>
+	<stdio.h>
+	<stdlib.h>
+	<unistd.h>
+	<linux/igmp.h>
+	<errno.h>
+	"main.h"
 

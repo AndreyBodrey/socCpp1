@@ -5,72 +5,96 @@
 #include <linux/if_ether.h>
 #include <net/ethernet.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <strings.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <errno.h>
-#include <netinet/igmp.h>
+//#include <netinet/igmp.h>
 #include <netinet/udp.h>
 #include <time.h>
+#include "linux/igmp.h"
 //#include <linux/if.h>
 #include <sys/ioctl.h>
-#include <net/if.h>
-#include <linux/ip.h>
+//#include <net/if.h>
+//#include <linux/ip.h>
 #include <netinet/ether.h>
 
 #include "main.h"
+#include "startup.h"
+#include "igmp.h"
 
 
 #define PACK_BUF_LEN 0xffff //макс длинна пакета, может столько и не надо, сколько там в сети максималка?
 
-#define MC_GROUP_ADDRES "239.255.10.101"
+//#define MC_GROUP_ADDRES "239.255.10.101"
 #define MC_GROUP_PORT 2015
 
 //global varibles
 	int countLoop = 2000000;  // пока для отладки цикл не бесконечный, это сколько раз он прокрутится, 1 остчет = один пакет любой
 
 	//char ipLockalStrFormat[20];  	// для локального айпи в формате строки
+//	in_addr_t ipIgmpGroup_int;		// айпи группы в int
 
-	in_addr_t ipIgmpGroup_int;		// айпи группы в int
 
+
+    struct Status status;
+
+
+//---------------------------------------------
 int main ()
 {
 	//in_addr_t ipLockal_int;  // для локального айпи ток в формате int пока не нужно
-
-	struct in_addr ipIgmpGroup_inadr; //структурка для хранения адреса группы
-
-	//ipLockal_int = serchIP(ipLockalStrFormat);
-	inet_pton(AF_INET, MC_GROUP_ADDRES, &ipIgmpGroup_inadr); //тут заполняет структуру ipIgmpGroup_inadr из строки "239.255.10.101"
-	ipIgmpGroup_int = ipIgmpGroup_inadr.s_addr;  //зачем это сделал уже не помню наверно надо удалить )
-
-
 	char buf[PACK_BUF_LEN] = {0,};	//создаем и заполняем нулями буфер для пакета
 
-	int soc = -1;
-	int socIgmp = -1;	// два будущих сокета
+	if (prepareSettings(&status) == 0)
+    {
+        printf("startup, inet_aton Group addr is wrong error: %d \n", errno);
+        exit(1);
 
-	printf("hello nigga !\n\n"); // приветствие
+    }
+    status.packetData = buf;
 
+    igmpSend(IGMPV2_HOST_MEMBERSHIP_REPORT, &status);
+    igmpSend(IGMP_HOST_LEAVE_MESSAGE, &status);
+
+	//struct in_addr ipIgmpGroup_inadr; //структурка для хранения адреса группы
+
+	//ipLockal_int = serchIP(ipLockalStrFormat);
+	//inet_pton(AF_INET, MC_GROUP_ADDRES, &ipIgmpGroup_inadr); //тут заполняет структуру ipIgmpGroup_inadr из строки "239.255.10.101"
+	//ipIgmpGroup_int = ipIgmpGroup_inadr.s_addr;  //зачем это сделал уже не помню наверно надо удалить )
+
+
+
+
+
+	//int socIgmp = -1;	// два будущих сокета
 
 	//serchIP(ipLockalStrFormat);  функция поиска локального айпи пок ане надо
 
 
-	socIgmp = igmpJoin();	//подписываемся на рассылку
-	if ( socIgmp < 0 ) quit(soc, socIgmp,"igmp soc not created\n"); //error
+	//socIgmp = igmpJoin();	//подписываемся на рассылку
+	//if ( socIgmp < 0 ) quit(status.socketFd, socIgmp,"igmp soc not created\n"); //error
 
 		//этот тип сокета перехватывает все пакеты с заголовком ethernet
+
 		//если я правильно понял, то пакеты с тетевухи летят на прямую и сюда и в ядро
-	soc = socket(  PF_PACKET, SOCK_PACKET, htons(ETH_P_ALL) );   // работает только от рута
-	if (soc > 0) printf ("socket crated\n");
-	else  quit(soc, socIgmp,"sniff soc not created\n");
+	errno = 0;
+	status.socketFd = socket(  PF_PACKET, SOCK_PACKET, htons(ETH_P_ALL) );   // работает только от рута
+	if (status.socketFd > 0) printf ("socket crated\n");
+	else
+    {
+        printf("error : %d ", errno);
+        quit(status.socketFd, "sniff soc not created\n");
+    }
 
 			//enp4s0 spirovo
 	char netCardName[20] = {0,};
 	findNetCardName(netCardName); // ищем имя сетевухи для следущ строки
 		// привязываем сокет к сетевухе
-	int rc = setsockopt(soc,SOL_SOCKET, SO_BINDTODEVICE, netCardName, strlen(netCardName) + 1);
-	if (rc != 0) quit(soc, socIgmp,"setsocopt not bind\n");
+	int rc = setsockopt(status.socketFd,SOL_SOCKET, 25, netCardName, strlen(netCardName) + 1);
+	if (rc != 0) quit(status.socketFd, "setsocopt not bind\n");
 
 	printf ("setSock Opt %d, error %d \n" , rc, errno);	 // дебаг инфо )
 
@@ -89,49 +113,132 @@ int main ()
 	while (countLoop--)	 // пошла работа
 	{
 		int reciveBytes = 0;
-		reciveBytes = recvfrom(soc,buf,sizeof(buf),0,0,0); // получаем
+		reciveBytes = recvfrom(status.socketFd,buf,sizeof(buf),0,0,0); // получаем
 		// 20 минимальный размер пакета
 		if (reciveBytes > 20 && reciveBytes < PACK_BUF_LEN)	packetHandler(buf, reciveBytes); //если все ок то обрабатываем
 	}
 
 
 	printf("over\n");
-	quit(soc, socIgmp, "game over.");
+	quit(status.socketFd, "game over.");
 
 }
 
 //**************************************************************************************
 
-			// тут пока-что много лишней хрени и функций
 
-void packetHandler(char *buf, int bufLen)
+
+void packetHandler(char *bufer, int bufLen)
 {
 	//printf ("got packet, size = %d \n", bufLen);
+    time_t timeNow = time(NULL); // получаем локальное время с секундах (от начала нашей эры  плюс 1900 лет )  ))) если я правильно понял
+	struct tm * timeS = localtime(&timeNow); // переводим время в структуру с кторорой можно получить нормальные часы, минуты итд
+	char packetInfo[200] = {0,}; // буфер для формирования строки информиции об пакете
 
-	int typeProtocol = packFiltr(buf,bufLen);
-	if (!typeProtocol) return clearBuf(buf);
+								// указатели на структуры заголовков
+  //  struct ethhdr *ethernetHeader;
+    struct iphdr *ipH ;
+	struct igmp *igmpHdr;
+	struct udphdr *udpHdr;
+								//структуры адресов
+	struct in_addr sorceAdr;
+	struct in_addr destAdr;
 
-	if (typeProtocol == IPPROTO_IGMP) checkIgmp(buf, bufLen);
-	if (typeProtocol == IPPROTO_UDP)  checkUdp(buf,bufLen);
+
+								// получаем адреса заголовков для скорости рабртаем с указателями без копирования
+  //  ethernetHeader = (struct ethhdr*)bufer;
+    ipH = (struct iphdr*)(bufer + sizeof(struct ethhdr));
+	igmpHdr = (struct igmp*)(bufer + sizeof(struct ethhdr) + ipH->ihl* 4);
+	udpHdr = (struct udphdr*)(bufer + sizeof(struct ethhdr) + ipH->ihl* 4);
+								// адреса копируются
+	sorceAdr.s_addr = ipH->saddr;
+	destAdr.s_addr = ipH->daddr;
+
+	switch(ipH->protocol) //смотри что за пакет пришел
+	{
+		case IPPROTO_UDP:
+			//	отсеиваем локальные пакеты с 127.х.х.х
+			//if (*((uint8_t*) &sorceAdr.s_addr) == 127) break; // пока не отсеиваем )
+
+					//если пакет не от группы на которую подписались, то на хер
+			if (ipH->daddr!= status.groupAddr.sin_addr.s_addr) break;
+			if (udpHdr->dest != MC_GROUP_PORT) break;                   //ports loocking
+
+			// далше проходят пакеты udp от ip группы пока больше проверок нет
+			//думаю может стоит дяобвить проверку на наш ли ip пакет пришел чтоб какиенить левые данные не пролезли ?
+
+						//заполняем стоку packetInfo инфой о пакете
+			sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
+								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday); // время
+			strcpy(packetInfo + strlen(packetInfo), "UDP Lenght ");
+			sprintf((packetInfo + strlen(packetInfo)),"% d : ", htons(ipH->tot_len)); // длинна всего пакета
+			strcpy (packetInfo + strlen(packetInfo), " from ");
+			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(destAdr)); // от куда ip
+			strcpy (packetInfo + strlen(packetInfo), " to ");
+			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(sorceAdr)); // куда ip
+			sprintf((packetInfo + strlen(packetInfo))," destPort %d ", htons(udpHdr->uh_dport)); // порты от куда
+			sprintf((packetInfo + strlen(packetInfo))," sorcePort %d ", htons(udpHdr->uh_sport)); // и куда
+				//выводим в терминал, пока что
+			logging(packetInfo);
 
 
+						// получаем указатель на данные в пакете, после udp заголовка
+			char *udpData = bufer + sizeof(struct ethhdr) + ipH->ihl* 4 + sizeof(struct udphdr);
+						// считаем длинну данных
+			int udpDataLen = ntohs(udpHdr->len) - sizeof(struct udphdr);
+			printf("udpDatalen %d \n", udpDataLen ); //отладочное
+
+			writeDataToFile( udpData,  udpDataLen); // пишем пакет в файл
+
+			break;  //с udp закончили
+
+
+		case IPPROTO_IGMP:
+			logging("got IGMP pack");
+					// все тоже что и с udp только с выборкой типа сообщения
+			sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
+								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday);
+			strcpy(packetInfo, "Lenght ");
+			sprintf((packetInfo + strlen(packetInfo)),"%d : ", htons(ipH->tot_len));
+			if (igmpHdr->igmp_type == IGMP_V2_MEMBERSHIP_REPORT)
+			{
+				strcpy (packetInfo + strlen(packetInfo), "IGMP_MEMBERSHIP_REPORT ");
+			}
+			if (igmpHdr->igmp_type == IGMP_MEMBERSHIP_QUERY)
+			{
+				strcpy (packetInfo + strlen(packetInfo), "IGMP_MEMBERSHIP_QUERY ");
+				// тут будет посылатся подтверждение IGMP_V2_MEMBERSHIP_REPORT
+				// при условии что не от сюда ушел запрс IGMP_V2_LEAVE_GROUP
+			}
+			if (igmpHdr->igmp_type == IGMP_V2_LEAVE_GROUP)
+			{
+				strcpy (packetInfo + strlen(packetInfo), "IGMP_LEAVE_GROUP ");
+			}
+
+			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(igmpHdr->igmp_group));
+			logging(packetInfo);
+			break;
+
+							// остальное вроде не нужно
+		case IPPROTO_TCP:
+			//logging("got TCP pack");
+			break;
+		case IPPROTO_ICMP:
+			//logging("got icmp pack");
+			break;
+		default:;
+			//logging("got some packet");
+	}
+
+
+
+    clearBuf(bufer);
 }
 //-------------------------------------------------------------------------------------
 
-void checkIgmp(char *buf, int bufLen)
-{
-	//  if qwery for us, then send addmembership
-	printf("ressived IGMP pack \n");
-}
-//-------------------------------------------------------------------------------------
 
-void checkUdp(char *buf, int bufLen)
-{
-	//   checking dup packets here
-	printf("ressived UDP pack \n");
-}
 //-------------------------------------------------------------------------------------
-
+/*
 int packFiltr(char * bufer, int len)
 {
 	time_t timeNow = time(NULL); // получаем локальное время с секундах (от начала нашей эры  плюс 1900 лет )  ))) если я правильно понял
@@ -165,7 +272,8 @@ int packFiltr(char * bufer, int len)
 			//if (*((uint8_t*) &sorceAdr.s_addr) == 127) break; // пока не отсеиваем )
 
 					//если пакет не от группы на которую подписались, то на хер
-			if (destAdr.s_addr != ipIgmpGroup_int) break;
+			if (ipH->daddr!= status.groupAddr.sin_addr.s_addr) break;
+			if (udpHdr->dest != MC_GROUP_PORT) break;                   //ports loocking
 
 			// далше проходят пакеты udp от ip группы пока больше проверок нет
 			//думаю может стоит дяобвить проверку на наш ли ip пакет пришел чтоб какиенить левые данные не пролезли ?
@@ -236,7 +344,7 @@ int packFiltr(char * bufer, int len)
 
 
 	return ipH->protocol;
-}
+}*/
 //-------------------------------------------------------------------------------------
 
 void clearBuf(char * buff)
@@ -249,7 +357,7 @@ void clearBuf(char * buff)
 	}
 }
 //-------------------------------------------------------------------------------------
-
+/*
 uint32_t serchIP2(char * ipLoc)  // поиск локального айпи компа в сети, пусть будет пригодится гденить)
 {
 	const int MAX_IFR = 20;
@@ -287,12 +395,13 @@ uint32_t serchIP2(char * ipLoc)  // поиск локального айпи к�
 	//возвращаем йапи в типе int
   return sin->sin_addr.s_addr;
 
-}
+}*/
 //-------------------------------------------------------------------------------------
 
 					// здесь тупо код скопирован с просторов,
 					// сокет не закрываю ибо призакрытии от посылает  IGMP_V2_LEAVE_GROUP
 					// уже готова своя функция, осталось только приладить
+					/*
 int igmpJoin(void)
 {
 	int socI = socket( AF_INET, SOCK_DGRAM, 0 );
@@ -307,7 +416,7 @@ int igmpJoin(void)
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	//bind(socIgmp, (struct sockaddr*)&addr, sizeof(addr)); // это не обязательно )
 	struct ip_mreq mreq;
-	inet_aton(MC_GROUP_ADDRES, &(mreq.imr_multiaddr));
+	inet_aton(GROUP_IP, &(mreq.imr_multiaddr));
 	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 
 							// эта хрень посылает MEMBERSHIP репорт
@@ -315,39 +424,15 @@ int igmpJoin(void)
 
 	return socI;
 
-}
+}*/
 //-------------------------------------------------------------------------------------
 
-void findNetCardName(char * name) // ищем имя сетевухи хватаем первую что не "lo" локалхост 127.х.х.х
-									// этот код то же с просторов, но с небольшой доработкой выбора
-{
-	struct if_nameindex *ni;
-    int i, selItem, choisenFlag = 0;
-    ni = if_nameindex();
 
-    if (ni == NULL) {
-        perror("if_nameindex()");
-        return;
-    }
-
-    for (i = 0; ni[i].if_index != 0 && ni[i].if_name != NULL; i++)
-	{
-		printf("%d: %s\n", ni[i].if_index, ni[i].if_name);
-		if ( strcmp((ni[i].if_name), "lo"))
-			if (!choisenFlag)
-			{
-			selItem = i;
-			choisenFlag = 1;
-			}					//выбирает первую что не localhost 127.0.0.1
-	}
-	strcpy(name, (ni[selItem].if_name));	// переносим имя сетевухи в выходнуй массив
-}
 //-------------------------------------------------------------------------------------
 
-void quit(int soc1, int soc2, char * message)
+void quit(int soc1, char * message)
 {
 	if (soc1 > 0) close(soc1);
-	if (soc2 > 0) close(soc2);
 	printf("%s", message);
 	exit(0);
 }

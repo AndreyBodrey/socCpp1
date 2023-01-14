@@ -1,7 +1,12 @@
 
-/*#include "main.h"
 
 
+
+
+#include "startup.h"
+//#include  "main.h"
+#include "igmp.h"
+#define SORS "192.168.0.112"
 
 uint16_t ip_check_sum(uint16_t *buf, uint8_t len)
 {
@@ -21,20 +26,11 @@ uint16_t ip_check_sum(uint16_t *buf, uint8_t len)
 //-------------------------------------------------------------------------
 
 
-int igmpSeng(uint8_t messageType)
+int igmpSend(uint8_t messageType, struct Status * state)
 {
-/*	int igmpSocket;
-	struct sockaddr_in daddr;
-	struct sockaddr_in laddr;
-
+    int igmpSocket;
 	char packet[32] = {0,};
 	struct iphdr *ip = (struct iphdr *)packet;
-
-	daddr.sin_family = AF_INET;
--	inet_pton(AF_INET, GROUP_IP, (struct in_addr *)&daddr.sin_addr.s_addr);
-
-	laddr.sin_family = AF_INET;
-	inet_pton(AF_INET, SORS, (struct in_addr *)&laddr.sin_addr.s_addr);
 
     errno = 0;
 	if ((igmpSocket = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
@@ -51,8 +47,8 @@ int igmpSeng(uint8_t messageType)
 	ip->ttl = 1;
 	ip->protocol = IPPROTO_IGMP;
 	ip->check = 0;
-	ip->saddr = laddr.sin_addr.s_addr;
-	ip->daddr = daddr.sin_addr.s_addr;
+	ip->saddr =  state->localAddr.sin_addr.s_addr;
+	ip->daddr =  state->groupAddr.sin_addr.s_addr;
     packet[20] = 0x94; packet[21] = 04;
 
 	struct igmphdr *imgpHrd = (struct igmphdr *) (packet + ip->ihl *4);
@@ -60,15 +56,68 @@ int igmpSeng(uint8_t messageType)
     imgpHrd->type = messageType;
     imgpHrd->code = 100;//max resp time 10 sec
     imgpHrd->csum = 0;
-    imgpHrd->group = daddr.sin_addr.s_addr;
+    imgpHrd->group = state->groupAddr.sin_addr.s_addr;
     imgpHrd->csum = ip_check_sum((uint16_t *)imgpHrd, sizeof(struct igmphdr));
 
     errno = 0;
-    int sendedBytes = sendto(igmpSocket, (char *)packet, sizeof(packet), 0,(struct sockaddr *)&daddr, (socklen_t)sizeof(daddr));
+    int sendedBytes = sendto(igmpSocket, (char *)packet, sizeof(packet), 0,(struct sockaddr *)&(state->groupAddr), (socklen_t)sizeof(state->groupAddr));
 
 	if (sendedBytes <= 0) printf("igmpSend error: sendto(). errno = %d \n", errno);
 
 	return sendedBytes;
-}*/
+
+
+
+
+
+
+    /*
+ 	int igmpSocket;
+	char packet[32] = {0,};
+	struct iphdr *ip = (struct iphdr *)packet;
+    errno = 0;
+	if ((igmpSocket = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
+    {
+		printf("igmpSend error: socket not created. errno = %d \n", errno);
+		return -1;
+	}
+	ip->ihl = 6;
+	ip->version = 4;
+	ip->tos = 0;
+	ip->tot_len = htons(32);
+	ip->frag_off = 0;
+	ip->ttl = 1;
+	ip->protocol = IPPROTO_IGMP;
+	ip->check = 0;
+	ip->saddr = state->groupAddr.sin_addr.s_addr;   //laddr.sin_addr.s_addr;
+	ip->daddr = state->localAddr.sin_addr.s_addr; // daddr.sin_addr.s_addr;
+    packet[20] = 0x94; packet[21] = 04;
+
+	struct igmphdr *imgpHrd = (struct igmphdr *) (packet + ip->ihl *4);
+
+    imgpHrd->type = messageType;
+    imgpHrd->code = 100;//max response time 10 sec
+    imgpHrd->csum = 0;
+    imgpHrd->group = state->groupAddr.sin_addr.s_addr;
+    imgpHrd->csum = ip_check_sum((uint16_t *)imgpHrd, sizeof(struct igmphdr));
+
+    errno = 0;
+    for(int i = 0; i <32; i++)
+    {
+        char a = packet[i];
+        printf("0x%02x ", a);
+
+    }
+    printf("\n\n:");
+    int sendedBytes = sendto(igmpSocket, (char *)packet, sizeof(packet), 0,
+                            (struct sockaddr *)&(state->groupAddr), (socklen_t)sizeof(state->groupAddr));
+
+
+	if (sendedBytes <= 0) printf("igmpSend error: sendto(). errno = %d \n", errno);
+	else printf("sended %d bytes , errrno %d \n", sendedBytes, errno);
+
+    close(igmpSocket);
+	return sendedBytes;*/
+}
 //----------------------------------------------------------------------------------------------------------------------------------
 
