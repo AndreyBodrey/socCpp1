@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1673723630 source:/home/drey/test/sock/socCpp1/startup.c
+1673724058 source:/home/drey/test/sock/socCpp1/startup.c
 	"main.h"
 	"startup.h"
 	<sys/types.h>
@@ -7,7 +7,7 @@
 	<netinet/in.h>
 	<arpa/inet.h>
 
-1673722814 source:/home/drey/test/sock/socCpp1/igmp.c
+1673724047 source:/home/drey/test/sock/socCpp1/igmp.c
 	"startup.h"
 	"igmp.h"
 
@@ -33,7 +33,7 @@
 	<sys/ioctl.h>
 	<net/if.h>
 
-1673723289 source:/home/drey/test/sock/socCpp1/1.c
+1673724047 source:/home/drey/test/sock/socCpp1/1.c
 	<stdio.h>
 	<stdlib.h>
 	<sys/types.h>
@@ -55,15 +55,6 @@
 	"main.h"
 	"startup.h"
 	"igmp.h"
-	<sys/socket.h>
-	<sys/types.h>
-	<netinet/ip.h>
-	<arpa/inet.h>
-	<string.h>
-	<stdio.h>
-	<stdlib.h>
-	<unistd.h>
-	<linux/igmp.h>
 
 1673720302 /home/drey/test/sock/socCpp1/igmp.h
 	<sys/socket.h>

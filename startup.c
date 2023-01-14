@@ -29,7 +29,7 @@ struct Status
 };
 
 ;*/
-#define SORS "192.168.0.112"
+
 
 int prepareSettings(struct Status * state)
 {
