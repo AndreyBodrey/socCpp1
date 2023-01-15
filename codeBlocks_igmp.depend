@@ -14,7 +14,7 @@
 1673723289 /home/drey/test/sock/socCpp1/main.h
 	"stdint.h"
 
-1673723289 /home/drey/test/sock/socCpp1/startup.h
+1673799320 /home/drey/test/sock/socCpp1/startup.h
 	<stdio.h>
 	<stdlib.h>
 	<sys/types.h>
@@ -33,7 +33,7 @@
 	<sys/ioctl.h>
 	<net/if.h>
 
-1673724047 source:/home/drey/test/sock/socCpp1/1.c
+1673798590 source:/home/drey/test/sock/socCpp1/1.c
 	<stdio.h>
 	<stdlib.h>
 	<sys/types.h>

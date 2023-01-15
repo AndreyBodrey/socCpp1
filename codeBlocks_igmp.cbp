@@ -39,6 +39,10 @@
 		</Unit>
 		<Unit filename="igmp.h" />
 		<Unit filename="main.h" />
+		<Unit filename="params.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="params.h" />
 		<Unit filename="startup.c">
 			<Option compilerVar="CC" />
 		</Unit>

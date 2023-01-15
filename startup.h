@@ -52,7 +52,8 @@ struct Status
     struct sockaddr_in groupAddr;
 	struct sockaddr_in localAddr;
 
-	enum WorkMode workMode;   // record some time or ressive some packets :default mode_video
+	//enum WorkMode workMode;   // record some time or ressive some packets :default mode_video
+	uint8_t workMode;
 	uint32_t workModeParam;   // if workMode set as record video here time to rec in sec, if packet mode here count packets to ressive : default 10 min video
 
 };
