@@ -1,0 +1,6 @@
+  obj/
+  *.[ao]
+  *.depend
+  *.layout
+  bin/Debug/
+    
