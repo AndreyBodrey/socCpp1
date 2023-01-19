@@ -248,7 +248,7 @@ void packetHandler(char *bufer, int bufLen)
 	{
 		case IPPROTO_UDP:
 					//если пакет не от группы на которую подписались, то на хер
-			printf("dest = %X\nsors = %X\n",status.ipHeader->daddr, status.groupAddr.sin_addr.s_addr);
+
 			if (status.ipHeader->daddr != status.groupAddr.sin_addr.s_addr) break;
 			if (ntohs(status.udpHeader->dest) != MC_GROUP_PORT) break;                   //ports loocking
 
@@ -331,7 +331,7 @@ void packetHandler(char *bufer, int bufLen)
 
 							// остальное вроде не нужно
 		case IPPROTO_TCP:
-			logging("got TCP pack");
+			//logging("got TCP pack");
 			break;
 		case IPPROTO_ICMP:
 			//logging("got icmp pack");
