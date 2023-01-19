@@ -76,6 +76,7 @@ struct Status
 int prepareSettings(struct Status *);
 uint32_t serchIP(char * );
 void findNetCardName(char * name);
-
+int readSettings(struct Status * state);
+void saveSettings(struct Status * state);
 
 #endif

@@ -1,6 +1,7 @@
 //#include "startup.h"
 #include "params.h"
-
+#include "igmp.h"
+#include "linux/igmp.h"
 
 int paramHanle(int argc, char *argv[], struct Status *state)
 {
@@ -24,6 +25,12 @@ int paramHanle(int argc, char *argv[], struct Status *state)
 
     if ( ! strcmp(argv[1], "vid") )         state->workMode = mode_video;
 
+     else if ( ! strcmp(argv[1], "l") )
+     {
+		igmpSend(IGMP_V2_LEAVE_GROUP, state);
+		exit(0);
+	}
+
     else if ( ! strcmp(argv[1], "ip") )      state->workMode = mode_ip;
 
     else if (  ! strcmp(argv[1], "udp") )    state->workMode = mode_udp;
@@ -45,7 +52,7 @@ int paramHanle(int argc, char *argv[], struct Status *state)
 void printHelp(void)
 {
     char * helpStr0 = "\n\tfirst option\n";
-    char helpStr1[] = "\t\'vid\'\t\tfor save data as vidoe stream\n \'ip\'\t\tfor save data start from ip header\n\t\'udp\'\t\tfor save from udp headers\n\t\'eth\'\t\t for save from ethernet header\n";
+    char helpStr1[] = "\t\'vid\'\t\tfor save data as vidoe stream\n\t\'ip\'\t\tfor save data start from ip header\n\t\'udp\'\t\tfor save from udp headers\n\t\'eth\'\t\t for save from ethernet header\n";
     char helpStr2[] = "\n\tsecond option\n";
     char helpStr3[] = "if 1th option is \'vid\', number of minutes to save video\n";
     char helpStr4[] = "if 1th option \'ip\', \'udp\', \'eth\', number of packages to save data\n";

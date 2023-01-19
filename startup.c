@@ -34,6 +34,7 @@ struct Status
 
  #define FILE_NAME "savedData"
  #define IGMP_FILE_NAME "igmpPackets"
+ #define CONFIG_FILE_NAME "config"
 
 int prepareSettings(struct Status * state)
 {
@@ -130,6 +131,35 @@ void findNetCardName(char * name) // ищем имя сетевухи хвата
 	strcpy(name, (ni[selItem].if_name));	// переносим имя сетевухи в выходнуй массив
 }
 //-----------------------------------------------------------------------------------------------------------------
+
+int readSettings(struct Status * state)
+{
+	return 1;
+}
+//------------------------------------------------------------------------------------------------------------------------
+
+void saveSettings(struct Status * state)
+{
+	FILE *testFile = fopen(CONFIG_FILE_NAME,"r");
+	if (testFile != NULL)
+	{
+        errno = 0;
+        if (remove(CONFIG_FILE_NAME))
+        {
+            printf("file %s not deleted, error  %d \n", CONFIG_FILE_NAME, errno);
+        }
+        fclose(testFile);
+    }
+    FILE *optionsFile = fopen(CONFIG_FILE_NAME,"w");
+    if (optionsFile != NULL)
+    {
+		size_t s = fwrite(state, 1, sizeof(state), optionsFile);
+		if (s < sizeof(state)) printf("write options ile error \n");
+    }
+    fclose(optionsFile);
+
+}
+//---------------------------------------------------------------------------------------------------------------------
 
 
 

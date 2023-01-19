@@ -1,8 +1,8 @@
 /*  туду
-   * параметры в ком строке
-   * далее режимы работы
-     проверка и подтверждение igmp qwery
-    сохранение разных данных
+    * параметры в ком строке
+    * далее режимы работы
+    * проверка и подтверждение igmp qwery
+	* сохранение разных данных
     работа с файлом настроек
     функция ручной настройки
 	сохранение в pcap формате
@@ -30,7 +30,7 @@
 #include "linux/igmp.h"
 //#include <linux/if.h>
 #include <sys/ioctl.h>
-//#include <net/if.h>
+#include <net/if.h>
 //#include <linux/ip.h>
 #include <netinet/ether.h>
 
@@ -61,7 +61,7 @@ int main (int argc, char *argv[])
     }
     status.packetData = buf;
 
-    paramHanle(argc, argv, &status);
+    if (paramHanle(argc, argv, &status) < 0) return 1;
 
 		//этот тип сокета перехватывает все пакеты с заголовком ethernet
 		//если я правильно понял, то пакеты с тетевухи летят на прямую и сюда и в ядро
@@ -75,10 +75,16 @@ int main (int argc, char *argv[])
     }
 
 		// привязываем сокет к сетевухе
-	int rc = setsockopt(status.socketFd, SOL_SOCKET, 25, status.nameEthernetCard, strlen(status.nameEthernetCard) + 1);
-	if (rc != 0) quit(status.socketFd, "setsocopt not bind\n");
+		printf( "%s. __ %d\n", status.nameEthernetCard,strlen(status.nameEthernetCard));
 
+	int rc = setsockopt(status.socketFd, SOL_SOCKET, SO_BINDTODEVICE, status.nameEthernetCard, strlen(status.nameEthernetCard));
+
+	if (rc != 0) quit(status.socketFd, "setsocopt not bind\n");
+	printf ("setSockOpt = %d\n", rc);
+	printf ("%s\n", status.nameEthernetCard);
 	printf ("setSock Opt %d, error %d \n" , rc, errno);	 // дебаг инфо )
+
+
 
 	FILE *testFile = fopen(status.fileName,"r");
 	if (testFile != NULL)
@@ -119,9 +125,11 @@ int main (int argc, char *argv[])
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
 
-		status.ipHeader = (struct iphdr*)(buf + sizeof(struct ethhdr));
+		status.ipHeader = (struct iphdr*)(status.packetData + sizeof(struct ethhdr));
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
+
+
 
 		packetHandler(buf, reciveBytes); //если все ок то обрабатываем
         clearBuf(buf);
@@ -144,6 +152,7 @@ int main (int argc, char *argv[])
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	printf("\n\nwork cycle completed\nmessage IGMP LEAVE sent\none minute left\n\n");
 
+	igmpSend(IGMP_V2_LEAVE_GROUP, &status);
 	loop = 60; // or 60 sec or 60 packs
 
 	while (loop)	 // пошла работа
@@ -186,7 +195,15 @@ int main (int argc, char *argv[])
 
 
 void packetHandler(char *bufer, int bufLen)
+
 {
+
+	struct iphdr *iph = (struct iphdr*)(bufer + sizeof(struct ethhdr));
+	struct udphdr *udph  = (struct udphdr*)(bufer + sizeof(struct ethhdr) + iph->ihl*4);
+	printf("buf  %u nip   %u udp  %u\n",bufer, status.ipHeader, status.udpHeader);
+	printf("buf  %u nip   %u udp  %u\n",bufer, iph, udph);
+	printf("ihp-pro %d stat-iph-pro %d\n",iph->protocol, status.ipHeader->protocol);
+
 	//printf ("got packet, size = %d \n", bufLen);
     time_t timeNow = time(NULL); // получаем локальное время с секундах (от начала нашей эры  плюс 1900 лет )  ))) если я правильно понял
 	struct tm * timeS = localtime(&timeNow); // переводим время в структуру с кторорой можно получить нормальные часы, минуты итд
@@ -200,10 +217,12 @@ void packetHandler(char *bufer, int bufLen)
 	sorceAdr.s_addr = status.ipHeader->saddr;
 	destAdr.s_addr = status.ipHeader->daddr;
 
-	switch(status.ipHeader->protocol) //смотри что за пакет пришел
+	uint8_t prot = status.ipHeader->protocol;
+	switch(prot) //смотри что за пакет пришел
 	{
 		case IPPROTO_UDP:
 					//если пакет не от группы на которую подписались, то на хер
+			printf("dest = %X\nsors = %X\n",status.ipHeader->daddr, status.groupAddr.sin_addr.s_addr);
 			if (status.ipHeader->daddr != status.groupAddr.sin_addr.s_addr) break;
 			if (ntohs(status.udpHeader->dest) != MC_GROUP_PORT) break;                   //ports loocking
 
@@ -286,7 +305,7 @@ void packetHandler(char *bufer, int bufLen)
 
 							// остальное вроде не нужно
 		case IPPROTO_TCP:
-			//logging("got TCP pack");
+			logging("got TCP pack");
 			break;
 		case IPPROTO_ICMP:
 			//logging("got icmp pack");
