@@ -66,7 +66,7 @@ int main (int argc, char *argv[])
 		//этот тип сокета перехватывает все пакеты с заголовком ethernet
 		//если я правильно понял, то пакеты с тетевухи летят на прямую и сюда и в ядро
 	errno = 0;
-	status.socketFd = socket(  PF_PACKET, SOCK_PACKET, htons(ETH_P_ALL) );   // работает только от рута
+	status.socketFd = socket(  PF_PACKET, SOCK_RAW, htons(ETH_P_ALL) );   // работает только от рута
 	if (status.socketFd > 0) printf ("socket crated\n");
 	else
     {
@@ -74,15 +74,10 @@ int main (int argc, char *argv[])
         quit(status.socketFd, "sniff soc not created\n");
     }
 
-		// привязываем сокет к сетевухе
-		printf( "%s. __ %d\n", status.nameEthernetCard,strlen(status.nameEthernetCard));
 
 	int rc = setsockopt(status.socketFd, SOL_SOCKET, SO_BINDTODEVICE, status.nameEthernetCard, strlen(status.nameEthernetCard));
-
 	if (rc != 0) quit(status.socketFd, "setsocopt not bind\n");
-	printf ("setSockOpt = %d\n", rc);
-	printf ("%s\n", status.nameEthernetCard);
-	printf ("setSock Opt %d, error %d \n" , rc, errno);	 // дебаг инфо )
+
 
 
 
@@ -107,7 +102,26 @@ int main (int argc, char *argv[])
         fclose(testFile);
     }
 
-    if (igmpSend(IGMPV2_HOST_MEMBERSHIP_REPORT, &status) > 0)
+	//int j = igmpJoy();
+
+						/// перевод сетевухи в неразборчивый режим
+	struct ifreq ethreq;
+	strncpy(ethreq.ifr_name, "enp4s0", IF_NAMESIZE);
+	if (ioctl(status.socketFd, SIOCGIFFLAGS, &ethreq) == -1)
+	{
+		perror("ioctl");
+		close(status.socketFd);
+		exit(1);
+	}
+	ethreq.ifr_flags |= IFF_PROMISC;
+	if (ioctl(status.socketFd, SIOCSIFFLAGS, &ethreq) == -1)
+	{
+		perror("ioctl");
+		close(status.socketFd);
+		exit(1);
+	}
+				///создаем и отправляем igmp join
+   if (igmpSend(IGMPV2_HOST_MEMBERSHIP_REPORT, &status) > 0)
         status.igmpSubscibe = 1;
     else
     {
@@ -117,6 +131,7 @@ int main (int argc, char *argv[])
 
     uint32_t loop = status.workModeParam;
     time_t lastTime= time(NULL);
+    status.ipHeader = (struct iphdr*)(status.packetData + sizeof(struct ethhdr));
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	while (loop)	 // пошла работа
 	{
@@ -125,11 +140,8 @@ int main (int argc, char *argv[])
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
 
-		status.ipHeader = (struct iphdr*)(status.packetData + sizeof(struct ethhdr));
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
-
-
 
 		packetHandler(buf, reciveBytes); //если все ок то обрабатываем
         clearBuf(buf);
@@ -193,18 +205,33 @@ int main (int argc, char *argv[])
 //**************************************************************************************
 
 
+int igmpJoy(void)
+{
+	int socI = socket( AF_INET, SOCK_DGRAM, 0 );
+	if ( socI < 0 ) return 0; //error
+
+	const int optval = 1;
+	setsockopt(socI, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	struct sockaddr_in addr;
+	bzero(&addr, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(MC_GROUP_PORT);
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	//bind(socIgmp, (struct sockaddr*)&addr, sizeof(addr));
+	struct ip_mreq mreq;
+	inet_aton(GROUP_IP, &(mreq.imr_multiaddr));
+	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+		// эта хрень посылает MEMBERSHIP репорт
+	setsockopt(socI, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+	return socI;
+
+}
+//-------------------------------------------------------------------------------------
 
 void packetHandler(char *bufer, int bufLen)
 
 {
 
-	struct iphdr *iph = (struct iphdr*)(bufer + sizeof(struct ethhdr));
-	struct udphdr *udph  = (struct udphdr*)(bufer + sizeof(struct ethhdr) + iph->ihl*4);
-	printf("buf  %u nip   %u udp  %u\n",bufer, status.ipHeader, status.udpHeader);
-	printf("buf  %u nip   %u udp  %u\n",bufer, iph, udph);
-	printf("ihp-pro %d stat-iph-pro %d\n",iph->protocol, status.ipHeader->protocol);
-
-	//printf ("got packet, size = %d \n", bufLen);
     time_t timeNow = time(NULL); // получаем локальное время с секундах (от начала нашей эры  плюс 1900 лет )  ))) если я правильно понял
 	struct tm * timeS = localtime(&timeNow); // переводим время в структуру с кторорой можно получить нормальные часы, минуты итд
 	char packetInfo[200] = {0,}; // буфер для формирования строки информиции об пакете
@@ -212,7 +239,6 @@ void packetHandler(char *bufer, int bufLen)
 								//структуры адресов
 	struct in_addr sorceAdr;
 	struct in_addr destAdr;
-
 								// адреса копируются
 	sorceAdr.s_addr = status.ipHeader->saddr;
 	destAdr.s_addr = status.ipHeader->daddr;
