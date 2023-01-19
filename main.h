@@ -1,10 +1,11 @@
 
 #include "stdint.h"
-
+#include"params.h"
 
 
  #define GROUP_IP "239.255.10.101"
-#define __USE_MISC
+ #define MC_GROUP_PORT 2015
+
 
 
 void packetHandler(char *buf, int bufLen);
@@ -16,3 +17,5 @@ void checkUdp(char *buf, int bufLen);
 void quit(int soc1, char * str);
 void logging(const char* str);
 void writeDataToFile(char * data, int len);
+void saveIgmpPacket(char *buf, int len);
+

@@ -9,7 +9,8 @@
 #include <arpa/inet.h>
 
 
-/*struct Status
+/*
+
 struct Status
 {
     uint8_t igmpSubscibe;
@@ -28,8 +29,11 @@ struct Status
 
 };
 
-;*/
 
+*/
+
+ #define FILE_NAME "savedData"
+ #define IGMP_FILE_NAME "igmpPackets"
 
 int prepareSettings(struct Status * state)
 {
@@ -38,6 +42,11 @@ int prepareSettings(struct Status * state)
     memset( state->ipLocalStr, 0, sizeof(state->ipLocalStr));
     memset( state->ipIgmpGroupStr, 0, sizeof(state->ipIgmpGroupStr));
     memset( state->nameEthernetCard, 0, sizeof(state->nameEthernetCard));
+    memset( state->fileName,0, sizeof(state->fileName));
+    memcpy(state->fileName, FILE_NAME,sizeof(FILE_NAME));
+    memset( state->igmpFileName,0, sizeof(state->igmpFileName));
+    memcpy(state->igmpFileName, IGMP_FILE_NAME,sizeof(IGMP_FILE_NAME));
+    state->fileSize = 0;
     state->socketFd = -1;
     state->workMode = mode_video;
     state->workModeParam = 600; // default 10 min video
@@ -47,8 +56,6 @@ int prepareSettings(struct Status * state)
 
     findNetCardName(state->nameEthernetCard);
     state->groupAddr.sin_family = AF_INET;
-    errno = 0;
-
     if (inet_pton(AF_INET, GROUP_IP, (struct in_addr *)&(state->groupAddr.sin_addr.s_addr)) == 0)
     return 0;
 
@@ -104,8 +111,8 @@ void findNetCardName(char * name) // ищем имя сетевухи хвата
 	struct if_nameindex *ni;
     int i, selItem, choisenFlag = 0;
     ni = if_nameindex();
-
-    if (ni == NULL) {
+    if (ni == NULL)
+    {
         perror("if_nameindex()");
         return;
     }

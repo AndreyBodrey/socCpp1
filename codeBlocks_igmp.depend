@@ -69,3 +69,80 @@
 	<errno.h>
 	"main.h"
 
+1674034506 source:/home/dron/ccode/socCpp1/igmp.c
+	"startup.h"
+	"igmp.h"
+
+1674064110 /home/dron/ccode/socCpp1/startup.h
+	<stdio.h>
+	<stdlib.h>
+	<sys/types.h>
+	<sys/socket.h>
+	<linux/if_ether.h>
+	<net/ethernet.h>
+	<netinet/in.h>
+	<strings.h>
+	<string.h>
+	<arpa/inet.h>
+	<unistd.h>
+	<errno.h>
+	<netinet/igmp.h>
+	<netinet/udp.h>
+	<time.h>
+	<sys/ioctl.h>
+	<net/if.h>
+
+1674034506 /home/dron/ccode/socCpp1/igmp.h
+	<sys/socket.h>
+	<sys/types.h>
+	<netinet/ip.h>
+	<arpa/inet.h>
+	<string.h>
+	<stdio.h>
+	<stdlib.h>
+	<unistd.h>
+	<linux/igmp.h>
+	<errno.h>
+	"main.h"
+
+1674065077 /home/dron/ccode/socCpp1/main.h
+	"stdint.h"
+	"params.h"
+
+1674059530 source:/home/dron/ccode/socCpp1/params.c
+	"params.h"
+
+1674045998 /home/dron/ccode/socCpp1/params.h
+	"startup.h"
+
+1674071828 source:/home/dron/ccode/socCpp1/startup.c
+	"main.h"
+	"startup.h"
+	<sys/types.h>
+	<sys/socket.h>
+	<netinet/in.h>
+	<arpa/inet.h>
+
+1674066704 source:/home/dron/ccode/socCpp1/1.c
+	<stdio.h>
+	<stdlib.h>
+	<sys/types.h>
+	<sys/socket.h>
+	<linux/if_ether.h>
+	<net/ethernet.h>
+	<netinet/in.h>
+	<netinet/ip.h>
+	<strings.h>
+	<string.h>
+	<arpa/inet.h>
+	<unistd.h>
+	<errno.h>
+	<netinet/udp.h>
+	<time.h>
+	"linux/igmp.h"
+	<sys/ioctl.h>
+	<netinet/ether.h>
+	"main.h"
+	"startup.h"
+	"igmp.h"
+

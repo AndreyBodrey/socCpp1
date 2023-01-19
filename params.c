@@ -1,4 +1,4 @@
-#include "startup.h"
+//#include "startup.h"
 #include "params.h"
 
 
@@ -35,6 +35,7 @@ int paramHanle(int argc, char *argv[], struct Status *state)
     else
     {
         printf("error in parametr %s \n", argv[1]);
+        printHelp();
         return -1;
     }
     return 1;

@@ -1,3 +1,5 @@
+#ifndef STARTUP_H_INCLUDED
+#define STARTUP_H_INCLUDED
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,11 +45,23 @@ struct Status
     uint8_t igmpSubscibe;
     char ipLocalStr[20];
     char ipIgmpGroupStr[20];
+    int igmpGroupPort;
     char nameEthernetCard[20];
+    char fileName[50];
+    int  fileSize;
+    char igmpFileName[50];
     time_t startTime;
 
     int socketFd;
+                        //содержание пакета
 	char *packetData;
+	int dataLen;
+
+    struct iphdr *ipHeader ;
+	struct igmp *igmpHeader;
+	struct udphdr *udpHeader;
+	char *saveData;
+	int saveDataLen;
 
     struct sockaddr_in groupAddr;
 	struct sockaddr_in localAddr;
@@ -64,3 +78,4 @@ uint32_t serchIP(char * );
 void findNetCardName(char * name);
 
 
+#endif
