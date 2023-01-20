@@ -101,7 +101,7 @@ uint32_t serchIP(char * ipLoc)  // поиск локального айпи ко
 	memcpy(ipLoc, temp, strlen(temp)+1);
   }
 	//возвращаем йапи в типе int
-  return sin->sin_addr.s_addr;
+  return (uint32_t)(sin->sin_addr.s_addr);
 
 }
 //-------------------------------------------------------------------------------------

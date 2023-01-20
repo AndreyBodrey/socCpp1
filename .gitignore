@@ -5,3 +5,6 @@
   bin/Debug/
  igmpPacket
  savedData
+codeBlocks_igmp.layout
+codeBlocks_igmp.depend
+obj/Release/1.o
