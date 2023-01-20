@@ -18,4 +18,4 @@ void quit(int soc1, char * str);
 void logging(const char* str);
 void writeDataToFile(char * data, int len);
 void saveIgmpPacket(char *buf, int len);
-int igmpJoy(void);
+//int igmpJoy(void);
