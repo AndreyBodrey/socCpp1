@@ -25,19 +25,15 @@ int paramHanle(int argc, char *argv[], struct Status *state)
 
     if ( ! strcmp(argv[1], "vid") )         state->workMode = mode_video;
 
-     else if ( ! strcmp(argv[1], "l") )
-     {
+    else if ( ! strcmp(argv[1], "pack") )     state->workMode = mode_ethernet;
+
+    else if ( ! strcmp(argv[1], "help") )    { printHelp(); return -1; }
+
+    else if ( ! strcmp(argv[1], "l") )
+    {
 		igmpSend(IGMP_V2_LEAVE_GROUP, state);
 		exit(0);
 	}
-
-    else if ( ! strcmp(argv[1], "ip") )      state->workMode = mode_ip;
-
-    else if (  ! strcmp(argv[1], "udp") )    state->workMode = mode_udp;
-
-    else if ( ! strcmp(argv[1], "eth") )     state->workMode = mode_ethernet;
-
-    else if ( ! strcmp(argv[1], "help") )    { printHelp(); return -1; }
 
     else
     {

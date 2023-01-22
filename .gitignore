@@ -1,4 +1,5 @@
   obj/
+  obj/**/1.o
   *.o
   *.a
   *.depend
@@ -9,3 +10,8 @@
 codeBlocks_igmp.layout
 codeBlocks_igmp.depend
 obj/Release/1.o
+bin/Release/igmpPackets
+igmpPackets
+obj/Debug/
+obj/Release/saveToFiles.o
+

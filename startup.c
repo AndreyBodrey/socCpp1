@@ -33,20 +33,23 @@ struct Status
 */
 
  #define FILE_NAME "savedData"
- #define IGMP_FILE_NAME "igmpPackets"
- #define CONFIG_FILE_NAME "config"
+
 
 int prepareSettings(struct Status * state)
 {
+
     state->startTime = time(NULL);
     state->igmpSubscibe = 0;
     memset( state->ipLocalStr, 0, sizeof(state->ipLocalStr));
     memset( state->ipIgmpGroupStr, 0, sizeof(state->ipIgmpGroupStr));
     memset( state->nameEthernetCard, 0, sizeof(state->nameEthernetCard));
-    memset( state->fileName,0, sizeof(state->fileName));
-    memcpy(state->fileName, FILE_NAME,sizeof(FILE_NAME));
+    strcpy( state->ipIgmpGroupStr, GROUP_IP);
+
+    setFileName(state);
+
     memset( state->igmpFileName,0, sizeof(state->igmpFileName));
     memcpy(state->igmpFileName, IGMP_FILE_NAME,sizeof(IGMP_FILE_NAME));
+
     state->fileSize = 0;
     state->socketFd = -1;
     state->workMode = mode_video;
@@ -161,5 +164,24 @@ void saveSettings(struct Status * state)
 }
 //---------------------------------------------------------------------------------------------------------------------
 
+void setFileName(struct Status * state)
+{
+    if (state->workMode == mode_ethernet)
+    {
+        char pcapFileName[sizeof(state->fileName) + sizeof(PCAP_EXTENSION) + 1];
+        memset(pcapFileName, 0, sizeof(pcapFileName));
+        strcpy(pcapFileName, FILE_NAME);
+        strcpy(pcapFileName + sizeof(state->fileName), PCAP_EXTENSION);
+        strcpy(state->fileName, pcapFileName);
+    }
+    else
+    {
+        char pcapFileName[sizeof(state->fileName) + sizeof(VID_EXTENSION) + 1];
+        memset(pcapFileName, 0, sizeof(pcapFileName));
+        strcpy(pcapFileName, FILE_NAME);
+        strcpy(pcapFileName + sizeof(state->fileName), VID_EXTENSION);
+        strcpy(state->fileName, pcapFileName);
+    }
 
+}
 

@@ -22,7 +22,10 @@
 //#include <linux/ip.h>
 //#include <netinet/ether.h>
 
-
+#define PCAP_EXTENSION ".pcap"
+#define VID_EXTENSION ".video"
+#define IGMP_FILE_NAME "igmpPackets"
+#define CONFIG_FILE_NAME "config"
 
 
 //#include  "main.h"
@@ -78,5 +81,6 @@ uint32_t serchIP(char * );
 void findNetCardName(char * name);
 int readSettings(struct Status * state);
 void saveSettings(struct Status * state);
+void setFileName(struct Status * state);
 
 #endif

@@ -8,6 +8,7 @@
 	сохранение в pcap формате
 	перехват сигналов завершения для отписки
 	пройтись по коду и посмотреть где нужен правильный выход из программы
+	удалить лишние режимы сохранения, оставить только видео и полностью пакеты
 
 */
 
@@ -38,6 +39,7 @@
 #include "main.h"
 #include "startup.h"
 #include "igmp.h"
+#include "saveToFiles.h"
 
 
 #define PACK_BUF_LEN 0xffff //макс длинна пакета, может столько и не надо, сколько там в сети максималка?
@@ -61,6 +63,7 @@ int main (int argc, char *argv[])
         exit(1);
     }
     status.packetData = buf;
+                                        writePackToPcap(buf, 10);
 
     if (paramHanle(argc, argv, &status) < 0) return 1;
 
@@ -80,19 +83,24 @@ int main (int argc, char *argv[])
 	if (rc != 0) quit(status.socketFd, "setsocopt not bind\n");
 
 
-
-
-	FILE *testFile = fopen(status.fileName,"r");
-	if (testFile != NULL)
-	{
-        errno = 0;
-        if (remove(status.fileName))
+//  FILES WORKS
+    if (status.workMode == mode_ethernet)
+        createPcapFile();
+    else
+    {
+        FILE *testFile = fopen(status.fileName,"r");
+        if (testFile != NULL)
         {
-            printf("file %s not deleted, error  %d \n", status.fileName, errno);
+            errno = 0;
+            if (remove(status.fileName))
+            {
+                printf("file %s not deleted, error  %d \n", status.fileName, errno);
+            }
+            fclose(testFile);
         }
-        fclose(testFile);
     }
-    testFile = fopen(status.igmpFileName,"r");
+
+    FILE *testFile = fopen(status.igmpFileName,"r");
 	if (testFile != NULL)
 	{
         errno = 0;
@@ -107,7 +115,7 @@ int main (int argc, char *argv[])
 
 						/// перевод сетевухи в неразборчивый режим
 	struct ifreq ethreq;
-	strncpy(ethreq.ifr_name, "enp4s0", IF_NAMESIZE);
+	strncpy(ethreq.ifr_name, status.nameEthernetCard, IF_NAMESIZE);
 	if (ioctl(status.socketFd, SIOCGIFFLAGS, &ethreq) == -1)
 	{
 		perror("ioctl");
@@ -275,18 +283,12 @@ void packetHandler(char *bufer, int bufLen)
                 case mode_ethernet:
                     status.saveData = status.packetData;
                     status.dataLen = bufLen;
-                    break;
-                case mode_ip:
-                    status.saveData = status.packetData + sizeof(struct ethhdr);
-                    status.dataLen = bufLen - sizeof(struct ethhdr);
-                    break;
-                case mode_udp:
-                    status.saveData = status.packetData + sizeof(struct ethhdr) + status.ipHeader->ihl* 4;
-                    status.dataLen = bufLen - sizeof(struct ethhdr) - status.ipHeader->ihl* 4;
+                    writePackToPcap(bufer, bufLen);
                     break;
                 case mode_video:
                     status.saveData = status.packetData + sizeof(struct ethhdr) + status.ipHeader->ihl* 4 + sizeof(struct udphdr);
                     status.dataLen = bufLen - sizeof(struct ethhdr) - status.ipHeader->ihl* 4 - sizeof(struct udphdr);
+                    writeDataToFile( bufer, bufLen); // пишем пакет в файл
                     break;
                 default:
                     status.saveData = status.packetData;
@@ -294,7 +296,7 @@ void packetHandler(char *bufer, int bufLen)
                     break;
             }
 
-			writeDataToFile( bufer, bufLen); // пишем пакет в файл
+
 			break;  //с udp закончили
 
 

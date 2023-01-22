@@ -6,6 +6,7 @@
  #define GROUP_IP "239.255.10.101"
  #define MC_GROUP_PORT 2015
 
+ //#define __USE_MISC 1
 
 
 void packetHandler(char *buf, int bufLen);
