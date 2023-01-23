@@ -9,31 +9,6 @@
 #include <arpa/inet.h>
 
 
-/*
-
-struct Status
-{
-    uint8_t igmpSubscibe;
-    char ipLocalStr[20];
-    char ipIgmpGroupStr[20];
-    char nameEthernetCard[20];
-
-    int socketFd;
-	uint8_t *packetData;
-
-    struct sockaddr_in groupAddr;
-	struct sockaddr_in localAddr;
-
-	enum WorkMode workMode;   // record some time or ressive some packets :default mode_video
-	uint32_t workModeParam;   // if workMode set as record video here time to rec in sec, if packet mode here count packets to ressive : default 10 min video
-
-};
-
-
-*/
-
-
-
 
 int prepareSettings(struct Status * state)
 {
@@ -58,9 +33,7 @@ int prepareSettings(struct Status * state)
 
     findNetCardName(state->nameEthernetCard);
     state->groupAddr.sin_family = AF_INET;
-    if (inet_pton(AF_INET, GROUP_IP, (struct in_addr *)&(state->groupAddr.sin_addr.s_addr)) == 0)
-    return 0;
-
+    if (inet_pton(AF_INET, GROUP_IP, (struct in_addr *)&(state->groupAddr.sin_addr.s_addr)) == 0) return 0;
 
     return 999;
 }
@@ -102,7 +75,7 @@ uint32_t serchIP(char * ipLoc)  // поиск локального айпи ко
 	memcpy(ipLoc, temp, strlen(temp)+1);
   }
 	//возвращаем йапи в типе int
-  return (uint32_t)(sin->sin_addr.s_addr);
+  return (sin->sin_addr.s_addr);
 
 }
 //-------------------------------------------------------------------------------------
@@ -111,7 +84,7 @@ void findNetCardName(char * name) // ищем имя сетевухи хвата
 									// этот код то же с просторов, но с небольшой доработкой выбора
 {
 	struct if_nameindex *ni;
-    int i, selItem, choisenFlag = 0;
+    int i, selItem = 0, choisenFlag = 0;
     ni = if_nameindex();
     if (ni == NULL)
     {
@@ -130,35 +103,6 @@ void findNetCardName(char * name) // ищем имя сетевухи хвата
 			}					//выбирает первую что не localhost 127.0.0.1
 	}
 	strcpy(name, (ni[selItem].if_name));	// переносим имя сетевухи в выходнуй массив
-}
-//-----------------------------------------------------------------------------------------------------------------
-
-int readSettings(struct Status * state)
-{
-	return 1;
-}
-//------------------------------------------------------------------------------------------------------------------------
-
-void saveSettings(struct Status * state)
-{
-	FILE *testFile = fopen(CONFIG_FILE_NAME,"r");
-	if (testFile != NULL)
-	{
-        errno = 0;
-        if (remove(CONFIG_FILE_NAME))
-        {
-            printf("file %s not deleted, error  %d \n", CONFIG_FILE_NAME, errno);
-        }
-        fclose(testFile);
-    }
-    FILE *optionsFile = fopen(CONFIG_FILE_NAME,"w");
-    if (optionsFile != NULL)
-    {
-		size_t s = fwrite(state, 1, sizeof(state), optionsFile);
-		if (s < sizeof(state)) printf("write options ile error \n");
-    }
-    fclose(optionsFile);
-
 }
 //---------------------------------------------------------------------------------------------------------------------
 

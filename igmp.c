@@ -7,7 +7,6 @@
 #include "igmp.h"
 
 
-#define SORS "192.168.0.112"
 
 uint16_t ip_check_sum(uint16_t *buf, uint8_t len)
 {

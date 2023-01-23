@@ -35,10 +35,7 @@ uint32_t serchIP(char * );
  enum WorkMode
 {
     mode_video = 1,
-    mode_udp,
-    mode_ip,
     mode_ethernet
-
 };
 
 
@@ -79,8 +76,6 @@ struct Status
 int prepareSettings(struct Status *);
 uint32_t serchIP(char * );
 void findNetCardName(char * name);
-int readSettings(struct Status * state);
-void saveSettings(struct Status * state);
 void setFileName(struct Status * state);
 
 #endif

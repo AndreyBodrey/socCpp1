@@ -3,13 +3,13 @@
     * далее режимы работы
     * проверка и подтверждение igmp qwery
 	* сохранение разных данных
-    работа с файлом настроек
+    * сохранение и считывание настроек
     функция интерфейса настройки
 	* сохранение в pcap формате
 	перехват сигналов завершения для отписки
-	пройтись по коду и посмотреть где нужен правильный выход из программы
+	* пройтись по коду и посмотреть где нужен правильный выход из программы
 	* удалить лишние режимы сохранения, оставить только видео и полностью пакеты
-
+	избавится от глобального статуса
 */
 
 
@@ -47,8 +47,7 @@
 
 
 //global varibles
-
-    struct Status status;
+struct Status status;
 
 
 //---------------------------------------------
@@ -57,10 +56,14 @@ int main (int argc, char *argv[])
 
 	char buf[PACK_BUF_LEN] = {0,};	//создаем и заполняем нулями буфер для пакета
 
-	if (prepareSettings(&status) < 0)
+	if (readSettings(&status) <= 0)
     {
-        printf("startup, inet_aton Group addr is wrong error: %d \n", errno);
-        exit(1);
+        printf("settings not readed from file, go default\n");
+        if (prepareSettings(&status) < 0)
+        {
+            printf("startup, inet_aton Group addr is wrong error: %d \n", errno);
+            exit(1);
+        }
     }
     status.packetData = buf;
     if (paramHanle(argc, argv, &status) < 0) return 1;
@@ -77,7 +80,6 @@ int main (int argc, char *argv[])
         printf("error : %d ", errno);
         quit(status.socketFd, "sniff soc not created\n");
     }
-
 
 	int rc = setsockopt(status.socketFd, SOL_SOCKET, SO_BINDTODEVICE, status.nameEthernetCard, strlen(status.nameEthernetCard));
 	if (rc != 0) quit(status.socketFd, "setsocopt not bind\n");
@@ -173,11 +175,11 @@ int main (int argc, char *argv[])
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	printf("\n\nwork cycle completed\nmessage IGMP LEAVE sent\none minute left\n\n");
 
-	if (status.igmpSubscibe)
-    {
+	//if (status.igmpSubscibe)
+    //{
         igmpSend(IGMP_V2_LEAVE_GROUP, &status);
         status.igmpSubscibe = 0;
-    }
+    //}
 	loop = 20; // or 60 sec or 60 packs
 
 	while (loop)	 // пошла работа
@@ -210,39 +212,13 @@ int main (int argc, char *argv[])
         }
 	}
 
-
 	printf("over\n");
 	quit(status.socketFd, "game over.");
 
 }
-//**************************************************************************************
-
-/*
-int igmpJoy(void)
-{
-	int socI = socket( AF_INET, SOCK_DGRAM, 0 );
-	if ( socI < 0 ) return 0; //error
-
-	const int optval = 1;
-	setsockopt(socI, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-	struct sockaddr_in addr;
-	bzero(&addr, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(MC_GROUP_PORT);
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	//bind(socIgmp, (struct sockaddr*)&addr, sizeof(addr));
-	struct ip_mreq mreq;
-	inet_aton(GROUP_IP, &(mreq.imr_multiaddr));
-	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-		// эта хрень посылает MEMBERSHIP репорт
-	setsockopt(socI, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
-	return socI;
-
-}*/
 //-------------------------------------------------------------------------------------
 
 void packetHandler(char *bufer, int bufLen)
-
 {
 
     time_t timeNow = time(NULL); // получаем локальное время с секундах (от начала нашей эры  плюс 1900 лет )  ))) если я правильно понял
@@ -250,11 +226,11 @@ void packetHandler(char *bufer, int bufLen)
 	char packetInfo[200] = {0,}; // буфер для формирования строки информиции об пакете
 
 								//структуры адресов
-	struct in_addr sorceAdr;
-	struct in_addr destAdr;
+	//struct in_addr sorceAdr;
+	//struct in_addr destAdr;
 								// адреса копируются
-	sorceAdr.s_addr = status.ipHeader->saddr;
-	destAdr.s_addr = status.ipHeader->daddr;
+	//sorceAdr.s_addr = status.ipHeader->saddr;
+	//destAdr.s_addr = status.ipHeader->daddr;
 
 	uint8_t prot = status.ipHeader->protocol;
 	switch(prot) //смотри что за пакет пришел
@@ -269,7 +245,7 @@ void packetHandler(char *bufer, int bufLen)
 			//думаю может стоит дяобвить проверку на наш ли ip пакет пришел чтоб какиенить левые данные не пролезли ?
 
 						//заполняем стоку packetInfo инфой о пакете
-			sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
+			/*sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
 								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday); // время
 			strcpy(packetInfo + strlen(packetInfo), "UDP Lenght ");
 			sprintf((packetInfo + strlen(packetInfo)),"% d : ", ntohs(status.ipHeader->tot_len)); // длинна всего пакета
@@ -278,9 +254,9 @@ void packetHandler(char *bufer, int bufLen)
 			strcpy (packetInfo + strlen(packetInfo), " to ");
 			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(sorceAdr)); // куда ip
 			sprintf((packetInfo + strlen(packetInfo))," destPort %d ", ntohs(status.udpHeader->uh_dport)); // порты от куда
-			sprintf((packetInfo + strlen(packetInfo))," sorcePort %d ", ntohs(status.udpHeader->uh_sport)); // и куда
+			sprintf((packetInfo + strlen(packetInfo))," sorcePort %d \n", ntohs(status.udpHeader->uh_sport)); // и куда
 				//выводим в терминал, пока что
-			logging(packetInfo);
+			printf("%s", packetInfo);*/
 
 			switch( status.workMode )
             {
@@ -292,20 +268,18 @@ void packetHandler(char *bufer, int bufLen)
                 case mode_video:
                     status.saveData = status.packetData + sizeof(struct ethhdr) + status.ipHeader->ihl* 4 + sizeof(struct udphdr);
                     status.dataLen = bufLen - sizeof(struct ethhdr) - status.ipHeader->ihl* 4 - sizeof(struct udphdr);
-                    writeDataToFile( bufer, bufLen); // пишем пакет в файл
+                    writeDataToFile( status.saveData, status.dataLen); // пишем пакет в файл
                     break;
                 default:
-                    status.saveData = status.packetData;
+                    status.saveData = bufer;
                     status.dataLen = bufLen;
                     break;
             }
-
 
 			break;  //с udp закончили
 
 
 		case IPPROTO_IGMP:
-			//logging("got IGMP pack");
 					// все тоже что и с udp только с выборкой типа сообщения
 			sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
 								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday);
@@ -333,7 +307,7 @@ void packetHandler(char *bufer, int bufLen)
 
 			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(status.igmpHeader->igmp_group));
 			saveIgmpPacket(bufer, bufLen);
-			logging(packetInfo);
+			printf("%s %s", packetInfo, "\n");
 			break;
 
 							// остальное вроде не нужно
@@ -346,7 +320,7 @@ void packetHandler(char *bufer, int bufLen)
 		default:;
 			//logging("got some packet");
 	}
-	writePackToPcap(bufer, bufLen);
+
 
 }
 //-------------------------------------------------------------------------------------
@@ -373,38 +347,7 @@ void quit(int soc1, char * message)
 }
 //-------------------------------------------------------------------------------------
 
-void logging(const char* str)
-{
-	printf("%s",str);
-	printf("\n");
-}
+
+
 //-------------------------------------------------------------------------------------
-
-void writeDataToFile(char * data, int len)
-{
-	FILE *dataFile = fopen(status.fileName, "a");	// открываем для записи в конец файла
-	if (dataFile == NULL)
-	{
-		logging("file open error");
-		return;
-	}
-	status.dataLen += len;		// прибавляем длинну пришедших данных к размеру файла
-	fwrite(data, sizeof(char), len, dataFile);		// пишем данные
-
-	fclose(dataFile);
-}
-//-------------------------------------------------------------------------------------
-
-void saveIgmpPacket(char *buf, int len)
-{
-    FILE *igmpDataFile = fopen(status.igmpFileName, "a");	// открываем для записи в конец файла
-	if (igmpDataFile == NULL)
-	{
-		logging("igmp file open error");
-		return;
-	}
-	fwrite(buf, sizeof(char), len, igmpDataFile);		// пишем данные
-
-	fclose(igmpDataFile);
-}
 

@@ -4,21 +4,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
+#include "startup.h"
 
-
-/*
-Some of the most common link-layer type values are:
-
-01 00 00 00 = IEEE 802.3 Ethernet
-65 00 00 00 = Raw IP packets (no layer 2 header)
-69 00 00 00 = IEEE 802.11 (WiFi)
-71 00 00 00 = SLL (Linux "cooked" capture encapsulation)
-77 00 00 00 = Prism header + IEEE 802.11 (WiFi)
-7f 00 00 00 = Radiotap header + IEEE 802.11 (WiFi)
-c3 00 00 00 = IEEE 802.15.4 (Zigbee)
-c5 00 00 00 = Endace ERF
-e4 00 00 00 = Raw IPv4 (no layer 2 header)
-*/
 
 struct pcapFileHeader
 {
@@ -32,12 +19,6 @@ struct pcapFileHeader
 
 };
 
-/*   packet header
-Timestamp Seconds (4 bytes)
-Timestamp Microseconds (4 bytes)
-Captured Length (4 bytes)
-Original Length (4 bytes)
-*/
 
 struct pcapPacketHeader
 {
@@ -49,7 +30,10 @@ struct pcapPacketHeader
 
 int createPcapFile();
 int writePackToPcap(char *, int );
-
+void saveIgmpPacket(char *buf, int len);
+void writeDataToFile(char * data, int len);
+int readSettings(struct Status * state);
+int saveSettings(struct Status * state);
 
 
 

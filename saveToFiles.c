@@ -114,3 +114,66 @@ int writePackToPcap(char *buf, int len)
 
     return result;
 }
+//-------------------------------------------------------------------------------------
+
+void saveIgmpPacket(char *buf, int len)
+{
+    FILE *igmpDataFile = fopen(status.igmpFileName, "a");	// открываем для записи в конец файла
+	if (igmpDataFile == NULL)
+	{
+		printf("igmp file open error\n");
+		return;
+	}
+	fwrite(buf, sizeof(char), len, igmpDataFile);		// пишем данные
+
+	fclose(igmpDataFile);
+}
+//-------------------------------------------------------------------------------------
+
+void writeDataToFile(char * data, int len)
+{
+	FILE *dataFile = fopen(status.fileName, "a");	// открываем для записи в конец файла
+	if (dataFile == NULL)
+	{
+		printf("video file open error");
+		return;
+	}
+	status.dataLen += len;		// прибавляем длинну пришедших данных к размеру файла
+	fwrite(data, sizeof(char), len, dataFile);		// пишем данные
+
+	fclose(dataFile);
+}
+//-------------------------------------------------------------------------------------------------------------
+
+int readSettings(struct Status * state)
+{
+    FILE *optionsFile;
+    optionsFile = fopen(CONFIG_FILE_NAME, "r");
+    if ( optionsFile == NULL) return -1;
+    int result = fread(state, 1, sizeof(state), optionsFile);
+	return result;
+}
+//------------------------------------------------------------------------------------------------------------------------
+int saveSettings(struct Status * state)
+{
+	FILE *testFile = fopen(CONFIG_FILE_NAME,"r");
+	if (testFile != NULL)
+	{
+        errno = 0;
+        if (remove(CONFIG_FILE_NAME))
+        {
+            printf("file %s not deleted, error  %d \n", CONFIG_FILE_NAME, errno);
+        }
+        fclose(testFile);
+    }
+    FILE *optionsFile = fopen(CONFIG_FILE_NAME,"w");
+    if (optionsFile != NULL)
+    {
+		size_t s = fwrite(state, 1, sizeof(state), optionsFile);
+		if (s < sizeof(state)) printf("write options ile error \n");
+    }
+    fclose(optionsFile);
+    return errno;// pperedelat
+}
+
+
