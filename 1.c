@@ -5,10 +5,10 @@
 	* сохранение разных данных
     работа с файлом настроек
     функция интерфейса настройки
-	сохранение в pcap формате
+	* сохранение в pcap формате
 	перехват сигналов завершения для отписки
 	пройтись по коду и посмотреть где нужен правильный выход из программы
-	удалить лишние режимы сохранения, оставить только видео и полностью пакеты
+	* удалить лишние режимы сохранения, оставить только видео и полностью пакеты
 
 */
 
@@ -63,9 +63,9 @@ int main (int argc, char *argv[])
         exit(1);
     }
     status.packetData = buf;
-                                        writePackToPcap(buf, 10);
-
     if (paramHanle(argc, argv, &status) < 0) return 1;
+
+    setFileName(&status);
 
 		//этот тип сокета перехватывает все пакеты с заголовком ethernet
 		//если я правильно понял, то пакеты с тетевухи летят на прямую и сюда и в ядро
@@ -173,8 +173,12 @@ int main (int argc, char *argv[])
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	printf("\n\nwork cycle completed\nmessage IGMP LEAVE sent\none minute left\n\n");
 
-	igmpSend(IGMP_V2_LEAVE_GROUP, &status);
-	loop = 60; // or 60 sec or 60 packs
+	if (status.igmpSubscibe)
+    {
+        igmpSend(IGMP_V2_LEAVE_GROUP, &status);
+        status.igmpSubscibe = 0;
+    }
+	loop = 20; // or 60 sec or 60 packs
 
 	while (loop)	 // пошла работа
 	{
@@ -342,6 +346,7 @@ void packetHandler(char *bufer, int bufLen)
 		default:;
 			//logging("got some packet");
 	}
+	writePackToPcap(bufer, bufLen);
 
 }
 //-------------------------------------------------------------------------------------

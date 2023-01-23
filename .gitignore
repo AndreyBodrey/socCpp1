@@ -1,12 +1,12 @@
-  obj/
-  obj/**/1.o
-  *.o
-  *.a
-  *.depend
-  *.layout
-  bin/Debug/
- igmpPacket
- savedData
+obj/
+obj/**/1.o
+*.o
+*.a
+*.depend
+*.layout
+bin/Debug/
+igmpPacket
+savedData
 codeBlocks_igmp.layout
 codeBlocks_igmp.depend
 obj/Release/1.o
@@ -14,4 +14,4 @@ bin/Release/igmpPackets
 igmpPackets
 obj/Debug/
 obj/Release/saveToFiles.o
-
+savedData.pcap

@@ -26,7 +26,7 @@
 #define VID_EXTENSION ".video"
 #define IGMP_FILE_NAME "igmpPackets"
 #define CONFIG_FILE_NAME "config"
-
+#define FILE_NAME "savedData"
 
 //#include  "main.h"
 
