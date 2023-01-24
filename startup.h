@@ -77,5 +77,5 @@ int prepareSettings(struct Status *);
 uint32_t serchIP(char * );
 void findNetCardName(char * name);
 void setFileName(struct Status * state);
-
+void changeSettingsInterface(struct Status * state);
 #endif

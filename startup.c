@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+#include <stdlib.h>
 
 
 int prepareSettings(struct Status * state)
@@ -124,6 +124,97 @@ void setFileName(struct Status * state)
         strcpy(pcapFileName + strlen(FILE_NAME), VID_EXTENSION);
         strcpy(state->fileName, pcapFileName);
     }
+
+}
+
+
+void changeSettingsInterface(struct Status * state)
+{
+pos1:
+    int temp = 0;
+    system("clear");
+    printf("\33[37;1;42m manual settings to set as default. \33[0m");
+    printf("\n\n\33[1m step 1.\n\t Enter number for save data as...\n\33[0m");
+    printf("\t \'1\' as video \n");
+    printf("\t \'2\' as pcap format \n");
+    int input = getchar();
+    if (input == '1')
+    {
+        state->workMode = mode_video;
+        printf(" you choose save video \n");
+    }
+    else if (input == '2')
+    {
+        state->workMode = mode_ethernet;
+        printf(" you choose sace pcap \n");
+    }
+    else goto pos1;
+p1:
+    printf(" enter to continue, \'1\' for repeat \n");
+    while (temp = getchar() != 10);
+    temp = getchar();
+    if (temp == '1') goto pos1;
+    if (temp != 13 && temp != 10) goto p1;
+
+
+pos2:
+    system("clear");
+
+    printf("\33[37;1;42m manual settings to set as default. \33[0m");
+    if (state->workMode == mode_video)
+    {
+         printf("\n\n\33[1m step 2.\n\t Enter the count of seconds to save video\n\33[0m");
+         printf("\33[1m \t now default is %u\n\33[0m", state->workModeParam);
+    }
+    else
+    {
+        printf("\n\n\33[1m step 2.\n\t Enter the count of packets to save in pcap\n\33[0m");
+        printf("\33[1m t now default is %u\n\33[0m", state->workModeParam);
+    }
+
+    char str[50] = {0,};
+    if (!scanf("%s", str)) goto pos2;
+    temp = atoi(str);
+    if (!temp) goto pos2;
+    state->workModeParam = temp;
+    printf("you enter %i  \n", state->workModeParam);
+
+p2:
+    printf(" enter to continue, \'1\' for over and exit setups \n");
+    while (temp = getchar() != 10);
+    temp = getchar();
+    if (temp == '1') return;
+    if (temp != 13 && temp != 10) goto p2;
+
+
+pos3:
+    system("clear");
+    printf("\33[37;1;42m manual settings to set as default. \33[0m");
+    printf("\n\n\33[1m step 3.\n\t Enter file name for imgp packs \n\33[0m");
+    printf("\tnow name is %s \n", state->igmpFileName);
+    scanf("%[^\n]", state->igmpFileName);
+    printf("\n you enter %s\n", state->igmpFileName);
+p3:
+    printf("\n enter to continue, \'1\' for repeat \n");
+    while (temp = getchar() != 10);
+    temp = getchar();
+    if (temp == '1') goto pos3;
+    if (temp != 13 && temp != 10) goto p3;
+
+
+pos4:
+    system("clear");
+    printf("\33[37;1;42m manual settings to set as default. \33[0m");
+    printf("\n\n\33[1m step 3.\n\t Enter filr name for data video & packs without extention \n\33[0m");
+    printf("\tnow name is %s \n", state->fileName);
+    scanf("%[^\n]", state->fileName);
+    printf("\n you enter %s\n", state->fileName);
+p4:
+    printf("\n enter to continue, \'1\' for repeat \n");
+    while (temp = getchar() != 10);
+    temp = getchar();
+    if (temp == '1') goto pos4;
+    if (temp != 13 && temp != 10) goto p4;
 
 }
 

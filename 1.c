@@ -10,6 +10,7 @@
 	* пройтись по коду и посмотреть где нужен правильный выход из программы
 	* удалить лишние режимы сохранения, оставить только видео и полностью пакеты
 	избавится от глобального статуса
+	вывод режима испрость продолжать или нет ?
 */
 
 
@@ -69,7 +70,8 @@ int main (int argc, char *argv[])
     if (paramHanle(argc, argv, &status) < 0) return 1;
 
     setFileName(&status);
-
+    changeSettingsInterface(&status);
+    return 1;
 		//этот тип сокета перехватывает все пакеты с заголовком ethernet
 		//если я правильно понял, то пакеты с тетевухи летят на прямую и сюда и в ядро
 	errno = 0;
@@ -189,7 +191,6 @@ int main (int argc, char *argv[])
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
 
-		status.ipHeader = (struct iphdr*)(buf + sizeof(struct ethhdr));
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 
@@ -306,7 +307,10 @@ void packetHandler(char *bufer, int bufLen)
 			}
 
 			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(status.igmpHeader->igmp_group));
-			saveIgmpPacket(bufer, bufLen);
+
+			if (status.workMode == mode_video) saveIgmpPacket(bufer, bufLen);
+			else writePackToPcap(bufer, bufLen);
+
 			printf("%s %s", packetInfo, "\n");
 			break;
 
