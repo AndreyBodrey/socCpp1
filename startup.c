@@ -132,6 +132,10 @@ void changeSettingsInterface(struct Status * state)
 {
 pos1:
     int temp = 0;
+    char tempStr[50];
+
+    goto pos5;
+
     system("clear");
     printf("\33[37;1;42m manual settings to set as default. \33[0m");
     printf("\n\n\33[1m step 1.\n\t Enter number for save data as...\n\33[0m");
@@ -205,7 +209,7 @@ p3:
 pos4:
     system("clear");
     printf("\33[37;1;42m manual settings to set as default. \33[0m");
-    printf("\n\n\33[1m step 3.\n\t Enter filr name for data video & packs without extention \n\33[0m");
+    printf("\n\n\33[1m step 4.\n\t Enter file name for data video & packs without extention \n\33[0m");
     printf("\tnow name is %s \n", state->fileName);
     scanf("%[^\n]", state->fileName);
     printf("\n you enter %s\n", state->fileName);
@@ -215,6 +219,39 @@ p4:
     temp = getchar();
     if (temp == '1') goto pos4;
     if (temp != 13 && temp != 10) goto p4;
+
+pos5:
+    memset(tempStr, 0, sizeof(tempStr));
+    struct sockaddr_in tempSadr = state->groupAddr;
+    system("clear");
+    printf("\33[37;1;42m manual settings to set as default. \33[0m");
+    printf("\n\n\33[1m step 5.\n\t Enter IP address igmp group \n\33[0m");
+    printf("\tnow IP is %s \n", state->ipIgmpGroupStr);
+    scanf("%[^\n]", tempStr);
+    printf("\n you enter %s\n", tempStr);
+    if (inet_pton(AF_INET, tempStr, (struct in_addr *)&(state->groupAddr.sin_addr.s_addr)) <= 0) // if error
+    {
+        printf("\n \33[37;1;41m ERROR IP try again! \33[0m \n");
+        state->groupAddr = tempSadr;
+    }
+    else
+    {
+        printf("IP changed .\n");
+    }
+p5:
+    printf("\n enter to continue, \'1\' for repeat, \'2\' for default %s \n", state->ipIgmpGroupStr);
+    while (temp = getchar() != 10);
+    temp = getchar();
+    if (temp == '1') { getchar();
+       goto pos5; }
+    if (temp != 13 && temp != 10) goto p5;
+
+
+
+
+
+
+
 
 }
 
