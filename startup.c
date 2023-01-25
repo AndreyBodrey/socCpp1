@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <net/if.h>
 
 
 int prepareSettings(struct Status * state)
@@ -30,6 +31,8 @@ int prepareSettings(struct Status * state)
 
     state->localAddr.sin_family = AF_INET;
     state->localAddr.sin_addr.s_addr = serchIP(state->ipLocalStr);
+
+    state->igmpGroupPort = htons(MC_GROUP_PORT);
 
     findNetCardName(state->nameEthernetCard);
     state->groupAddr.sin_family = AF_INET;
@@ -108,21 +111,23 @@ void findNetCardName(char * name) // ищем имя сетевухи хвата
 
 void setFileName(struct Status * state)
 {
+    char name[50] = {0,};
+    memcpy(name, state->fileName, strlen(state->fileName));
     if (state->workMode == mode_ethernet)
     {
-        char pcapFileName[sizeof(FILE_NAME) + sizeof(PCAP_EXTENSION) + 1];
+        char pcapFileName[strlen(name) + sizeof(PCAP_EXTENSION) + 1];
         memset(pcapFileName, 0, sizeof(pcapFileName));
-        strcpy(pcapFileName, FILE_NAME);
-        strcpy(pcapFileName + strlen(FILE_NAME), PCAP_EXTENSION);
+        strcpy(pcapFileName, name);
+        strcpy(pcapFileName + strlen(name), PCAP_EXTENSION);
         strcpy(state->fileName, pcapFileName);
     }
     else
     {
-        char pcapFileName[sizeof(FILE_NAME) + sizeof(VID_EXTENSION) + 1];
-        memset(pcapFileName, 0, sizeof(pcapFileName));
-        strcpy(pcapFileName, FILE_NAME);
-        strcpy(pcapFileName + strlen(FILE_NAME), VID_EXTENSION);
-        strcpy(state->fileName, pcapFileName);
+        char vidFileName[strlen(name) + sizeof(VID_EXTENSION) + 1];
+        memset(vidFileName, 0, sizeof(vidFileName));
+        strcpy(vidFileName, name);
+        strcpy(vidFileName + strlen(name), VID_EXTENSION);
+        strcpy(state->fileName, vidFileName);
     }
 
 }
@@ -130,11 +135,12 @@ void setFileName(struct Status * state)
 
 void changeSettingsInterface(struct Status * state)
 {
+                                // mode
 pos1:
     int temp = 0;
     char tempStr[50];
 
-    goto pos5;
+   // goto pos5;
 
     system("clear");
     printf("\33[37;1;42m manual settings to set as default. \33[0m");
@@ -150,7 +156,7 @@ pos1:
     else if (input == '2')
     {
         state->workMode = mode_ethernet;
-        printf(" you choose sace pcap \n");
+        printf(" you choose  pcap \n");
     }
     else goto pos1;
 p1:
@@ -161,7 +167,7 @@ p1:
     if (temp != 13 && temp != 10) goto p1;
 
 
-pos2:
+pos2:                                           // mode param
     system("clear");
 
     printf("\33[37;1;42m manual settings to set as default. \33[0m");
@@ -173,7 +179,7 @@ pos2:
     else
     {
         printf("\n\n\33[1m step 2.\n\t Enter the count of packets to save in pcap\n\33[0m");
-        printf("\33[1m t now default is %u\n\33[0m", state->workModeParam);
+        printf("\33[1m \t now default is %u\n\33[0m", state->workModeParam);
     }
 
     char str[50] = {0,};
@@ -191,7 +197,7 @@ p2:
     if (temp != 13 && temp != 10) goto p2;
 
 
-pos3:
+pos3:                                       //igmp file name
     system("clear");
     printf("\33[37;1;42m manual settings to set as default. \33[0m");
     printf("\n\n\33[1m step 3.\n\t Enter file name for imgp packs \n\33[0m");
@@ -206,7 +212,7 @@ p3:
     if (temp != 13 && temp != 10) goto p3;
 
 
-pos4:
+pos4:                                       //data file name
     system("clear");
     printf("\33[37;1;42m manual settings to set as default. \33[0m");
     printf("\n\n\33[1m step 4.\n\t Enter file name for data video & packs without extention \n\33[0m");
@@ -220,7 +226,7 @@ p4:
     if (temp == '1') goto pos4;
     if (temp != 13 && temp != 10) goto p4;
 
-pos5:
+pos5:                                       // IP address IGMP
     memset(tempStr, 0, sizeof(tempStr));
     struct sockaddr_in tempSadr = state->groupAddr;
     system("clear");
@@ -231,7 +237,7 @@ pos5:
     printf("\n you enter %s\n", tempStr);
     if (inet_pton(AF_INET, tempStr, (struct in_addr *)&(state->groupAddr.sin_addr.s_addr)) <= 0) // if error
     {
-        printf("\n \33[37;1;41m ERROR IP try again! \33[0m \n");
+        printf("\n \33[37;1;41m ERROR IP try again! Or continue for leave as default\33[0m \n");
         state->groupAddr = tempSadr;
     }
     else
@@ -239,17 +245,128 @@ pos5:
         printf("IP changed .\n");
     }
 p5:
-    printf("\n enter to continue, \'1\' for repeat, \'2\' for default %s \n", state->ipIgmpGroupStr);
+    printf("\n enter to continue, \'1\' for repeat\n");
     while (temp = getchar() != 10);
     temp = getchar();
-    if (temp == '1') { getchar();
-       goto pos5; }
+    if (temp == '1') { getchar(); goto pos5; }
     if (temp != 13 && temp != 10) goto p5;
 
+                                            // local IP addres
+pos6:
+    memset(tempStr, 0, sizeof(tempStr));
+    system("clear");
+    printf("\33[37;1;42m manual settings to set as default. \33[0m");
+    printf("\n\n\33[1m step 6.\n\t Choose number local IP address \33[0m \n\n");
+
+	const int MAX_IFR = 20;
+    struct ifreq ifr[MAX_IFR];
+    struct ifconf ifconf;
+    struct sockaddr_in *sin;
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    ifconf.ifc_len = sizeof(ifr);
+    ifconf.ifc_req = ifr;
+    ioctl(sock, SIOCGIFCONF, &ifconf); // заполняет структуру ifconf чтоб из нее получить что надо
+    close(sock);
+    int n = ifconf.ifc_len / sizeof(struct ifreq);
+    for(int i = 0; i < n; i++)
+    {
+        sin = (struct sockaddr_in *) (&ifr[i].ifr_addr);
+        printf("\t%i -> %s\n", i, inet_ntoa(sin->sin_addr)); // отладочное
+        state->localAddr = *sin;
+        //char * temp = inet_ntoa(sin->sin_addr);
+        //memcpy(ipLoc, temp, strlen(temp)+1);
+    }
+   // getchar();
+   int enter = -1;
+sc1:
+    printf("enter number");
+    enter = scanf("%1i",&temp);
+    if (!enter) { getchar(); goto sc1; }
+    if ( temp < 0 || temp >= n)
+    {
+        printf("wrong number %i\n",temp);
+        goto sc1;
+    }
+    else
+    {
+        sin = (struct sockaddr_in *) (&ifr[temp].ifr_addr);
+        char * p = inet_ntoa(sin->sin_addr);
+        memcpy(state->ipLocalStr, p, strlen(p)+1);
+        state->localAddr = *sin;
+    }
+
+p6:
+    printf("\n enter to continue, \'r\' for repeat\n");
+    while (temp = getchar() != 10);
+    temp = getchar();
+    if (temp == '1') { getchar(); goto pos6; }
+    if (temp != 13 && temp != 10) goto p6;
 
 
+pos7:                                       //igmp port
+    memset(tempStr, 0, sizeof(tempStr));
+    system("clear");
+    printf("\33[37;1;42m manual settings to set as default. \33[0m");
+    printf("\n\n\33[1m step 6.\n\t Enter IPGP port \33[0m \n\n");
+
+    if (!scanf("%s", tempStr)) goto pos7;
+    temp = atoi(tempStr);
+    if (temp <= 0) goto pos7;
+    state->igmpGroupPort = htons(temp);
+    printf("you enter %i \n",temp);
+    printf("igmp porn now is %i  \n", state->igmpGroupPort);
+
+p7:
+    printf("\n enter to over, \'r\' for repeat\n");
+    while (temp = getchar() != 10);
+    temp = getchar();
+    if (temp == '1') { getchar(); goto pos7; }
+    if (temp != 13 && temp != 10) goto p7;
 
 
+pos8:
+    memset(tempStr, 0, sizeof(tempStr));
+    system("clear");
+    printf("\33[37;1;42m manual settings to set as default. \33[0m");
+    printf("\n\n\33[1m step 6.\n\t Choose name ethernet card \33[0m \n\n");
+
+    struct if_nameindex *ni;
+    int i;
+    ni = if_nameindex();
+    if (ni == NULL)
+    {
+        perror("if_nameindex()");
+        return;
+    }
+
+    for (i = 0; ni[i].if_index != 0 && ni[i].if_name != NULL; i++)
+	{
+		printf("\t %d: %s\n", i, ni[i].if_name);
+
+	}
+
+    enter = -1;
+sc8:
+    printf("enter number");
+    enter = scanf("%1i",&temp);
+    if (!enter) { getchar(); goto sc8; }
+    if ( temp < 0 || temp >= i)
+    {
+        printf("wrong number %i\n",temp);
+        goto sc8;
+    }
+    else
+    {
+        strcpy(state->nameEthernetCard , (ni[temp].if_name));	// переносим имя сетевухи в выходнуй массив
+    }
+
+p8:
+    printf("\n enter to continue, \'r\' for repeat\n");
+    while (temp = getchar() != 10);
+    temp = getchar();
+    if (temp == '1') { getchar(); goto pos8; }
+    if (temp != 13 && temp != 10) goto p8;
 
 
 

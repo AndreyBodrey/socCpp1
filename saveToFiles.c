@@ -150,7 +150,7 @@ int readSettings(struct Status * state)
     FILE *optionsFile;
     optionsFile = fopen(CONFIG_FILE_NAME, "r");
     if ( optionsFile == NULL) return -1;
-    int result = fread(state, 1, sizeof(state), optionsFile);
+    int result = fread(state, 1, sizeof(struct Status), optionsFile);
 	return result;
 }
 //------------------------------------------------------------------------------------------------------------------------
@@ -169,7 +169,7 @@ int saveSettings(struct Status * state)
     FILE *optionsFile = fopen(CONFIG_FILE_NAME,"w");
     if (optionsFile != NULL)
     {
-		size_t s = fwrite(state, 1, sizeof(state), optionsFile);
+		size_t s = fwrite(state, 1, sizeof(struct Status), optionsFile);
 		if (s < sizeof(state)) printf("write options ile error \n");
     }
     fclose(optionsFile);

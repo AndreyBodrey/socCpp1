@@ -16,11 +16,9 @@
 #include <netinet/igmp.h>
 #include <netinet/udp.h>
 #include <time.h>
-//#include <linux/if.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
-//#include <linux/ip.h>
-//#include <netinet/ether.h>
+
 
 #define PCAP_EXTENSION ".pcap"
 #define VID_EXTENSION ".video"

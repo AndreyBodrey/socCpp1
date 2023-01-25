@@ -27,6 +27,8 @@ int paramHanle(int argc, char *argv[], struct Status *state)
 
     else if ( ! strcmp(argv[1], "pack") )     state->workMode = mode_ethernet;
 
+    else if ( ! strcmp(argv[1], "setup") )  return 100;
+
     else if ( ! strcmp(argv[1], "help") )    { printHelp(); return -1; }
 
     else if ( ! strcmp(argv[1], "l") )
@@ -44,7 +46,7 @@ int paramHanle(int argc, char *argv[], struct Status *state)
     }
     return 1;
 }
-//----------------------------------------------------------------------------------------
+//--------- -------------------------------------------------------------------------------
 
 void printHelp(void)
 {

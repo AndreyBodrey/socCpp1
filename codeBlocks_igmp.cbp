@@ -11,6 +11,7 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
+				<Option parameters="vid 20" />
 				<Compiler>
 					<Add option="-g" />
 				</Compiler>
@@ -20,6 +21,7 @@
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
+				<Option parameters="setup" />
 				<Compiler>
 					<Add option="-O2" />
 				</Compiler>
@@ -34,6 +36,7 @@
 		<Unit filename="1.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="description.txt" />
 		<Unit filename="igmp.c">
 			<Option compilerVar="CC" />
 		</Unit>

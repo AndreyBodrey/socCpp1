@@ -4,13 +4,14 @@
     * проверка и подтверждение igmp qwery
 	* сохранение разных данных
     * сохранение и считывание настроек
-    функция интерфейса настройки
+    * функция интерфейса настройки
 	* сохранение в pcap формате
 	перехват сигналов завершения для отписки
 	* пройтись по коду и посмотреть где нужен правильный выход из программы
 	* удалить лишние режимы сохранения, оставить только видео и полностью пакеты
 	избавится от глобального статуса
-	вывод режима испрость продолжать или нет ?
+	сделать сщхранение igmp в формате рсар
+
 */
 
 
@@ -37,8 +38,9 @@
 //#include <linux/ip.h>
 #include <netinet/ether.h>
 
-#include "main.h"
 #include "startup.h"
+#include "main.h"
+
 #include "igmp.h"
 #include "saveToFiles.h"
 
@@ -67,11 +69,16 @@ int main (int argc, char *argv[])
         }
     }
     status.packetData = buf;
-    if (paramHanle(argc, argv, &status) < 0) return 1;
+    int param = paramHanle(argc, argv, &status);
+    if ( param < 0) return 1;
+    else if (param == 100)
+    {
+        changeSettingsInterface(&status);
+        saveSettings(&status);
+    }
 
     setFileName(&status);
-    changeSettingsInterface(&status);
-    return 1;
+
 		//этот тип сокета перехватывает все пакеты с заголовком ethernet
 		//если я правильно понял, то пакеты с тетевухи летят на прямую и сюда и в ядро
 	errno = 0;
@@ -115,8 +122,6 @@ int main (int argc, char *argv[])
         fclose(testFile);
     }
 
-	//int j = igmpJoy();
-
 						/// перевод сетевухи в неразборчивый режим
 	struct ifreq ethreq;
 	strncpy(ethreq.ifr_name, status.nameEthernetCard, IF_NAMESIZE);
@@ -142,9 +147,11 @@ int main (int argc, char *argv[])
         return 1;
     }
 
+    int dec = 0;
     uint32_t loop = status.workModeParam;
-    time_t lastTime= time(NULL);
+    time_t lastTime = time(NULL);
     status.ipHeader = (struct iphdr*)(status.packetData + sizeof(struct ethhdr));
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	while (loop)	 // пошла работа
 	{
@@ -156,7 +163,7 @@ int main (int argc, char *argv[])
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 
-		packetHandler(buf, reciveBytes); //если все ок то обрабатываем
+		dec = packetHandler(buf, reciveBytes); //если все ок то обрабатываем
         clearBuf(buf);
 
         switch( status.workMode )
@@ -170,7 +177,7 @@ int main (int argc, char *argv[])
                 }
                 break;
             default:
-                loop--;
+                loop -= dec;
                 break;
         }
 	}
@@ -186,6 +193,7 @@ int main (int argc, char *argv[])
 
 	while (loop)	 // пошла работа
 	{
+
 		int reciveBytes = 0;
 		reciveBytes = recvfrom(status.socketFd, buf,sizeof(buf),0,0,0); // получаем
 		// 20 минимальный размер пакета
@@ -194,7 +202,7 @@ int main (int argc, char *argv[])
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 
-		packetHandler(buf, reciveBytes); //если все ок то обрабатываем
+		dec = packetHandler(buf, reciveBytes); //если все ок то обрабатываем
         clearBuf(buf);
 
         switch( status.workMode )
@@ -208,7 +216,7 @@ int main (int argc, char *argv[])
                 }
                 break;
             default:
-                loop--;
+                loop -= dec;
                 break;
         }
 	}
@@ -219,9 +227,10 @@ int main (int argc, char *argv[])
 }
 //-------------------------------------------------------------------------------------
 
-void packetHandler(char *bufer, int bufLen)
+int packetHandler(char *bufer, int bufLen)
 {
 
+    int result = 0;
     time_t timeNow = time(NULL); // получаем локальное время с секундах (от начала нашей эры  плюс 1900 лет )  ))) если я правильно понял
 	struct tm * timeS = localtime(&timeNow); // переводим время в структуру с кторорой можно получить нормальные часы, минуты итд
 	char packetInfo[200] = {0,}; // буфер для формирования строки информиции об пакете
@@ -240,7 +249,8 @@ void packetHandler(char *bufer, int bufLen)
 					//если пакет не от группы на которую подписались, то на хер
 
 			if (status.ipHeader->daddr != status.groupAddr.sin_addr.s_addr) break;
-			if (ntohs(status.udpHeader->dest) != MC_GROUP_PORT) break;                   //ports loocking
+			if (ntohs(status.udpHeader->dest) != status.igmpGroupPort) break;                   //ports loocking
+
 
 			// далше проходят пакеты udp от ip группы пока больше проверок нет
 			//думаю может стоит дяобвить проверку на наш ли ip пакет пришел чтоб какиенить левые данные не пролезли ?
@@ -265,6 +275,7 @@ void packetHandler(char *bufer, int bufLen)
                     status.saveData = status.packetData;
                     status.dataLen = bufLen;
                     writePackToPcap(bufer, bufLen);
+                    result = 1;
                     break;
                 case mode_video:
                     status.saveData = status.packetData + sizeof(struct ethhdr) + status.ipHeader->ihl* 4 + sizeof(struct udphdr);
@@ -276,12 +287,12 @@ void packetHandler(char *bufer, int bufLen)
                     status.dataLen = bufLen;
                     break;
             }
-
 			break;  //с udp закончили
 
 
 		case IPPROTO_IGMP:
 					// все тоже что и с udp только с выборкой типа сообщения
+
 			sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
 								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday);
 			strcpy(packetInfo, "Lenght ");
@@ -324,7 +335,7 @@ void packetHandler(char *bufer, int bufLen)
 		default:;
 			//logging("got some packet");
 	}
-
+    return result;
 
 }
 //-------------------------------------------------------------------------------------

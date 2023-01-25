@@ -4,6 +4,8 @@
 #include "startup.h"
 
 
+
+
 int paramHanle(int argc, char *argv[], struct Status *state);
 void printHelp(void);
 
