@@ -37,10 +37,8 @@
 #include <net/if.h>
 //#include <linux/ip.h>
 #include <netinet/ether.h>
-
 #include "startup.h"
 #include "main.h"
-
 #include "igmp.h"
 #include "saveToFiles.h"
 
@@ -51,12 +49,15 @@
 
 //global varibles
 struct Status status;
+thrd_data* threadData;
 
 
-//---------------------------------------------
-int main (int argc, char *argv[])
+//-------------------------------------------------------------------------------------------------------------------------------
+//int main (int argc, char *argv[])
+
+void* mainWork(void *thData)
 {
-
+    threadData = thData;
 	char buf[PACK_BUF_LEN] = {0,};	//создаем и заполняем нулями буфер для пакета
 
 	if (readSettings(&status) <= 0)
@@ -69,7 +70,7 @@ int main (int argc, char *argv[])
         }
     }
     status.packetData = buf;
-    int param = paramHanle(argc, argv, &status);
+    int param = paramHanle(2, threadData, &status);
     if ( param < 0) return 1;
     else if (param == 100)
     {
@@ -165,11 +166,11 @@ int main (int argc, char *argv[])
 
 		dec = packetHandler(buf, reciveBytes); //если все ок то обрабатываем
         clearBuf(buf);
-
+        time_t timeNow = time(NULL);
         switch( status.workMode )
         {
             case mode_video:
-                time_t timeNow = time(NULL);
+
                 if (timeNow != lastTime)
                 {
                     lastTime = timeNow;
@@ -204,11 +205,11 @@ int main (int argc, char *argv[])
 
 		dec = packetHandler(buf, reciveBytes); //если все ок то обрабатываем
         clearBuf(buf);
-
+        time_t timeNow = time(NULL);
         switch( status.workMode )
         {
             case mode_video:
-                time_t timeNow = time(NULL);
+
                 if (timeNow != lastTime)
                 {
                     lastTime = timeNow;

@@ -3,9 +3,8 @@
 #include "igmp.h"
 #include "linux/igmp.h"
 
-int paramHanle(int argc, char *argv[], struct Status *state)
+int paramHanle(int argc, thrd_data data, struct Status *state)
 {
-    if ( argc <= 1 )return 0;
     if ( argc > 3 )
     {
         printf( "too many options, use \"help\" \n" );
@@ -14,7 +13,7 @@ int paramHanle(int argc, char *argv[], struct Status *state)
 
     if ( argc == 3 )
     {
-        count = atoi(argv[2]);
+        count = atoi(data->count);
         if ( count > 0 ) state->workModeParam = count;
         else
         {

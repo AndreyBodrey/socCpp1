@@ -6,7 +6,8 @@
 
 
 
-int paramHanle(int argc, char *argv[], struct Status *state);
+
+int paramHanle(int argc, thrd_data, struct Status *state);
 void printHelp(void);
 
 #endif // PARAMS_H_INCLUDED

@@ -49,6 +49,8 @@ int igmpSend(uint8_t messageType, struct Status * state)
 	ip->check = 0;
 	ip->saddr =  state->localAddr.sin_addr.s_addr;
 	ip->daddr =  state->groupAddr.sin_addr.s_addr;
+	for(int i= 0; i <4; i++)
+        printf("%i.",ip[16+i]);
     packet[20] = 0x94; packet[21] = 04;
 
 	struct igmphdr *imgpHrd = (struct igmphdr *) (packet + ip->ihl *4);

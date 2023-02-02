@@ -36,6 +36,12 @@ uint32_t serchIP(char * );
     mode_ethernet
 };
 
+ typedef struct
+{
+    char *command;
+    char *count;
+    int workMode;
+} thrd_data;
 
 
 struct Status
