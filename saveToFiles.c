@@ -170,7 +170,7 @@ int saveSettings(struct Status * state)
     if (optionsFile != NULL)
     {
 		size_t s = fwrite(state, 1, sizeof(struct Status), optionsFile);
-		if (s < sizeof(state)) printf("write options ile error \n");
+		if (s < sizeof(state)) printf("write options in file error \n");
     }
     fclose(optionsFile);
     return errno;// pperedelat

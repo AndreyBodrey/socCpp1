@@ -41,6 +41,7 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="igmp.h" />
+		<Unit filename="igmpwork.h" />
 		<Unit filename="main.h" />
 		<Unit filename="params.c">
 			<Option compilerVar="CC" />

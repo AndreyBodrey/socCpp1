@@ -33,9 +33,18 @@ uint32_t serchIP(char * );
  enum WorkMode
 {
     mode_video = 1,
-    mode_ethernet
+    mode_ethernet,
+    mode_infinity,
+    mode_stop,
+    mode_stoped
 };
 
+ typedef struct
+{
+    char *command;
+    char *countd;
+    int workMode;
+} thrd_data;
 
 
 struct Status
@@ -67,7 +76,7 @@ struct Status
 	//enum WorkMode workMode;   // record some time or ressive some packets :default mode_video
 	uint8_t workMode;
 	uint32_t workModeParam;   // if workMode set as record video here time to rec in sec, if packet mode here count packets to ressive : default 10 min video
-
+    int uxSock;
 };
 
 

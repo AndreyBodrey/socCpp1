@@ -12,9 +12,13 @@
 	избавится от глобального статуса
 	сделать сщхранение igmp в формате рсар
 
+	далее работа с сокетом юникс
+
 */
 
+//#include <asm-generic/socket.h>
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -37,26 +41,103 @@
 #include <net/if.h>
 //#include <linux/ip.h>
 #include <netinet/ether.h>
+#include <sys/un.h>
 
 #include "startup.h"
 #include "main.h"
-
 #include "igmp.h"
 #include "saveToFiles.h"
+#include "igmpwork.h"
 
 
 #define PACK_BUF_LEN 0xffff //макс длинна пакета, может столько и не надо, сколько там в сети максималка?
-
+#define ADDRESS "/tmp/mySuperSocket.socket"
 
 
 //global varibles
 struct Status status;
-
-
-//---------------------------------------------
-int main (int argc, char *argv[])
+thrd_data* threadData;
+/*
+int main()
 {
+    int pid = startWork();
+    printf("started, pid = %i \n", pid);
+    sleep(3);
+    stopWork();
 
+    return 1;
+}
+*/
+//--------------------------------------------------------------------------------------------------------
+int istartWork()
+{
+    struct sockaddr_un sadr;
+    char command[] = "work";
+
+    memset(&sadr, 0, sizeof(struct sockaddr_un));
+    sadr.sun_family = AF_UNIX;
+    strncpy(sadr.sun_path, ADDRESS,sizeof(sadr.sun_path)-1);
+    status.uxSock = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+    if (status.uxSock > 0) printf("Unix socket created = %i \n", status.uxSock);
+    else
+    {
+        quit("soc not created ");
+        return -1;
+    }
+    while (connect(status.uxSock, (struct sockaddr*)(&sadr), sizeof(struct sockaddr_un)) != 0)
+    {
+        perror("trying to connect...\n");
+        sleep(1);
+    }
+
+    threadData = (thrd_data*)malloc(sizeof(thrd_data));
+    threadData->command = (char*)malloc(strlen(command)+1);
+    memset(threadData->command, 0, strlen(command)+1);
+    strcpy(threadData->command, command);
+
+    char countstr[] = "200";
+    threadData->countd = (char*)malloc(sizeof(countstr)+1);
+    memset(threadData->countd, 0, sizeof(countstr)+1);
+    strcpy(threadData->countd, countstr);
+
+    threadData->workMode = mode_infinity;
+
+    pthread_t *pthread = (pthread_t*)malloc(sizeof(pthread_t));
+
+
+
+
+
+    pthread_create(pthread, NULL, mainWork, threadData);
+
+    pthread_detach(*pthread);
+    unsigned long int threadPID = *pthread;
+    int rez = threadPID & 0xffffffff;
+
+    return rez;
+}
+//---------------------------------------------------------------------------------------------------------
+
+int istopWork()
+{
+    printf("try to stop\n");
+    threadData->workMode = mode_stop;
+    while(threadData->workMode != mode_stoped);
+    printf("process stoped\n");
+    free(threadData->command);
+    free(threadData->countd);
+    free(threadData);
+    printf("data deleted\n");
+    close(status.uxSock);
+    return 1;
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------
+//int main (int argc, char *argv[])
+
+void* mainWork(void *thData)
+{
+    threadData = thData;
 	char buf[PACK_BUF_LEN] = {0,};	//создаем и заполняем нулями буфер для пакета
 
 	if (readSettings(&status) <= 0)
@@ -64,13 +145,14 @@ int main (int argc, char *argv[])
         printf("settings not readed from file, go default\n");
         if (prepareSettings(&status) < 0)
         {
-            printf("startup, inet_aton Group addr is wrong error: %d \n", errno);
-            exit(1);
+            quit("startup, inet_aton Group addr is wrong error: %d \n");
+            return NULL;
         }
     }
     status.packetData = buf;
-    int param = paramHanle(argc, argv, &status);
-    if ( param < 0) return 1;
+    int param = paramHanle(2, threadData, &status);
+    if ( param < 0) { quit("params error 1"); return NULL;}
+    if (param == 0) { quit("params error 2"); return NULL;}
     else if (param == 100)
     {
         changeSettingsInterface(&status);
@@ -78,7 +160,6 @@ int main (int argc, char *argv[])
     }
 
     setFileName(&status);
-
 		//этот тип сокета перехватывает все пакеты с заголовком ethernet
 		//если я правильно понял, то пакеты с тетевухи летят на прямую и сюда и в ядро
 	errno = 0;
@@ -87,11 +168,16 @@ int main (int argc, char *argv[])
 	else
     {
         printf("error : %d ", errno);
-        quit(status.socketFd, "sniff soc not created\n");
+        quit("sniff soc not created\n");
+        return NULL;
     }
 
 	int rc = setsockopt(status.socketFd, SOL_SOCKET, SO_BINDTODEVICE, status.nameEthernetCard, strlen(status.nameEthernetCard));
-	if (rc != 0) quit(status.socketFd, "setsocopt not bind\n");
+	if (rc != 0)
+    {
+        quit("setsocopt not bind\n");
+        return NULL;
+    }
 
 
 //  FILES WORKS
@@ -127,24 +213,25 @@ int main (int argc, char *argv[])
 	strncpy(ethreq.ifr_name, status.nameEthernetCard, IF_NAMESIZE);
 	if (ioctl(status.socketFd, SIOCGIFFLAGS, &ethreq) == -1)
 	{
-		perror("ioctl");
 		close(status.socketFd);
-		exit(1);
+		quit("ioctl 1");
+		return NULL;
 	}
 	ethreq.ifr_flags |= IFF_PROMISC;
 	if (ioctl(status.socketFd, SIOCSIFFLAGS, &ethreq) == -1)
 	{
-		perror("ioctl");
 		close(status.socketFd);
-		exit(1);
+		quit("ioctl 2 ");
+		return NULL;
 	}
+
 				///создаем и отправляем igmp join
    if (igmpSend(IGMPV2_HOST_MEMBERSHIP_REPORT, &status) > 0)
         status.igmpSubscibe = 1;
     else
     {
-        printf("immgp MEMBERSHIP_REPORT not sended\n");
-        return 1;
+        quit("immgp MEMBERSHIP_REPORT not sended ");
+        return NULL;
     }
 
     int dec = 0;
@@ -155,6 +242,15 @@ int main (int argc, char *argv[])
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	while (loop)	 // пошла работа
 	{
+
+	    if (threadData->workMode == mode_stop)
+        {
+            igmpSend(IGMP_V2_LEAVE_GROUP, &status);
+            igmpSend(IGMP_V2_LEAVE_GROUP, &status);
+            threadData->workMode = mode_stoped;
+            quit("stoped ");
+            return NULL;
+        }
 		int reciveBytes = 0;
 		reciveBytes = recvfrom(status.socketFd, buf,sizeof(buf),0,0,0); // получаем
 		// 20 минимальный размер пакета
@@ -165,16 +261,18 @@ int main (int argc, char *argv[])
 
 		dec = packetHandler(buf, reciveBytes); //если все ок то обрабатываем
         clearBuf(buf);
-
+        time_t timeNow = time(NULL);
         switch( status.workMode )
         {
             case mode_video:
-                time_t timeNow = time(NULL);
                 if (timeNow != lastTime)
                 {
                     lastTime = timeNow;
                     loop--;
                 }
+                break;
+            case mode_infinity:
+
                 break;
             default:
                 loop -= dec;
@@ -182,13 +280,18 @@ int main (int argc, char *argv[])
         }
 	}
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-	printf("\n\nwork cycle completed\nmessage IGMP LEAVE sent\none minute left\n\n");
+	//printf("\n\nwork cycle completed\nmessage IGMP LEAVE sent\none minute left\n\n");
 
-	//if (status.igmpSubscibe)
-    //{
-        igmpSend(IGMP_V2_LEAVE_GROUP, &status);
-        status.igmpSubscibe = 0;
-    //}
+
+    igmpSend(IGMP_V2_LEAVE_GROUP, &status);
+    igmpSend(IGMP_V2_LEAVE_GROUP, &status);
+    status.igmpSubscibe = 0;
+    if (threadData->workMode == mode_stop)
+    {
+        quit("mode_stop ");
+        return NULL;
+    }
+
 	loop = 20; // or 60 sec or 60 packs
 
 	while (loop)	 // пошла работа
@@ -204,11 +307,11 @@ int main (int argc, char *argv[])
 
 		dec = packetHandler(buf, reciveBytes); //если все ок то обрабатываем
         clearBuf(buf);
-
+        time_t timeNow = time(NULL);
         switch( status.workMode )
         {
             case mode_video:
-                time_t timeNow = time(NULL);
+
                 if (timeNow != lastTime)
                 {
                     lastTime = timeNow;
@@ -222,8 +325,9 @@ int main (int argc, char *argv[])
 	}
 
 	printf("over\n");
-	quit(status.socketFd, "game over.");
+	quit("game over.");
 
+    return NULL;
 }
 //-------------------------------------------------------------------------------------
 
@@ -282,18 +386,22 @@ int packetHandler(char *bufer, int bufLen)
                     status.dataLen = bufLen - sizeof(struct ethhdr) - status.ipHeader->ihl* 4 - sizeof(struct udphdr);
                     writeDataToFile( status.saveData, status.dataLen); // пишем пакет в файл
                     break;
+                case mode_infinity:
+                        printf(" infinityMode work! ");
+
+                    break;
                 default:
                     status.saveData = bufer;
                     status.dataLen = bufLen;
                     break;
             }
-			break;  //с udp закончили
+			//break;  //с udp закончили
 
 
 		case IPPROTO_IGMP:
 					// все тоже что и с udp только с выборкой типа сообщения
 
-			sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
+			sprintf(packetInfo, "%02i:%02i:%02i %i.%02i.%02i ",timeS->tm_hour,timeS->tm_min,
 								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday);
 			strcpy(packetInfo, "Lenght ");
 			sprintf((packetInfo + strlen(packetInfo)),"%d : ", htons(status.ipHeader->tot_len));
@@ -307,7 +415,11 @@ int packetHandler(char *bufer, int bufLen)
 				if (status.igmpSubscibe == 1)
 				{
 					if (igmpSend(IGMPV2_HOST_MEMBERSHIP_REPORT, &status) <= 0)
-						quit(status.socketFd,"igmp MEMBERSHIP_REPORT not sended\n");
+                    {
+                        quit("igmp MEMBERSHIP_REPORT not sended\n");
+                        return 0;
+                    }
+
 				}
 				// тут будет посылатся подтверждение IGMP_V2_MEMBERSHIP_REPORT
 				// при условии что не от сюда ушел запрс IGMP_V2_LEAVE_GROUP
@@ -328,6 +440,7 @@ int packetHandler(char *bufer, int bufLen)
 							// остальное вроде не нужно
 		case IPPROTO_TCP:
 			//logging("got TCP pack");
+			write(status.uxSock, "got TCP pack", 13);
 			break;
 		case IPPROTO_ICMP:
 			//logging("got icmp pack");
@@ -351,15 +464,17 @@ void clearBuf(char * buff)
 }
 //-------------------------------------------------------------------------------------
 
-void quit(int soc1, char * message)
+void quit( char * message)
 {
-	if (soc1 > 0) close(soc1);
-	printf("%s", message);
+	if (status.socketFd > 0) close(status.socketFd);
+	if (status.uxSock > 0) close(status.uxSock);
+	perror(message);
 	if (igmpSend(IGMP_HOST_LEAVE_MESSAGE, &status) <= 0)
 		printf("immgp MEMBERSHIP_REPORT not sended\n");
 
-	exit(0);
+	//pthread_exit(0);
 }
+
 //-------------------------------------------------------------------------------------
 
 
