@@ -3,46 +3,28 @@
 #include "igmp.h"
 #include "linux/igmp.h"
 
-int paramHanle(int argc, thrd_data data, struct Status *state)
+int paramHanle(int argc, thrd_data *data, struct Status *state)
 {
-    if ( argc > 3 )
-    {
-        printf( "too many options, use \"help\" \n" );
-    }
-    int count = 0;
 
-    if ( argc == 3 )
-    {
-        count = atoi(data->count);
-        if ( count > 0 ) state->workModeParam = count;
-        else
-        {
-            printf("error in patametr %s \n", argv[2]);
-            return -1;
-        }
-    }
+    state->workModeParam = atoi(data->countd);
 
-    if ( ! strcmp(argv[1], "vid") )         state->workMode = mode_video;
+    if ( ! strcmp(data->command, "vid") ) state->workMode = mode_video;
 
-    else if ( ! strcmp(argv[1], "pack") )     state->workMode = mode_ethernet;
+    else if ( ! strcmp(data->command, "pack") ) state->workMode = mode_ethernet;
 
-    else if ( ! strcmp(argv[1], "setup") )  return 100;
+    else if ( ! strcmp(data->command, "setup") ) return 100;
 
-    else if ( ! strcmp(argv[1], "help") )    { printHelp(); return -1; }
+    else if ( ! strcmp(data->command, "help") ) { printHelp(); return 0; }
 
-    else if ( ! strcmp(argv[1], "l") )
+    else if ( ! strcmp(data->command, "work") ) state->workMode = mode_infinity;
+
+    else if ( ! strcmp(data->command, "l") )
     {
 		igmpSend(IGMP_V2_LEAVE_GROUP, state);
 		igmpSend(IGMP_V2_LEAVE_GROUP, state);
-		exit(0);
+		return 0;
 	}
-
-    else
-    {
-        printf("error in parametr %s \n", argv[1]);
-        printHelp();
-        return -1;
-    }
+    else  return -1;
     return 1;
 }
 //--------- -------------------------------------------------------------------------------
