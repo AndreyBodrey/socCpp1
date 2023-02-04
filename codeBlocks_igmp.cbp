@@ -47,6 +47,7 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="params.h" />
+		<Unit filename="processedPacket.h" />
 		<Unit filename="saveToFiles.c">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -58,6 +58,7 @@ struct Status
     int  fileSize;
     char igmpFileName[50];
     time_t startTime;
+    struct timeval packReciveTime;
 
     int socketFd;
                         //содержание пакета

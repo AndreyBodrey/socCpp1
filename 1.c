@@ -9,9 +9,8 @@
 	перехват сигналов завершения для отписки
 	* пройтись по коду и посмотреть где нужен правильный выход из программы
 	* удалить лишние режимы сохранения, оставить только видео и полностью пакеты
-	избавится от глобального статуса
 	сделать сщхранение igmp в формате рсар
-
+	фильтр igmp пакетов !!!
 	далее работа с сокетом юникс
 
 */
@@ -48,6 +47,7 @@
 #include "igmp.h"
 #include "saveToFiles.h"
 #include "igmpwork.h"
+#include "processedPacket.h"
 
 
 #define PACK_BUF_LEN 0xffff //макс длинна пакета, может столько и не надо, сколько там в сети максималка?
@@ -57,6 +57,7 @@
 //global varibles
 struct Status status;
 thrd_data* threadData;
+HandledPacket hPack;
 /*
 int main()
 {
@@ -256,6 +257,8 @@ void* mainWork(void *thData)
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
 
+		if (gettimeofday(&(hPack.timePackRecive)))
+			perror ("error to get time - gettimeofday ");
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 
@@ -302,8 +305,12 @@ void* mainWork(void *thData)
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
 
+		if (gettimeofday(&(status.packReciveTime)))
+			perror ("error to get time - gettimeofday ");
+
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
+
 
 		dec = packetHandler(buf, reciveBytes); //если все ок то обрабатываем
         clearBuf(buf);
@@ -317,6 +324,9 @@ void* mainWork(void *thData)
                     lastTime = timeNow;
                     loop--;
                 }
+                break;
+           case mode_infinity:
+
                 break;
             default:
                 loop -= dec;
@@ -339,13 +349,6 @@ int packetHandler(char *bufer, int bufLen)
 	struct tm * timeS = localtime(&timeNow); // переводим время в структуру с кторорой можно получить нормальные часы, минуты итд
 	char packetInfo[200] = {0,}; // буфер для формирования строки информиции об пакете
 
-								//структуры адресов
-	//struct in_addr sorceAdr;
-	//struct in_addr destAdr;
-								// адреса копируются
-	//sorceAdr.s_addr = status.ipHeader->saddr;
-	//destAdr.s_addr = status.ipHeader->daddr;
-
 	uint8_t prot = status.ipHeader->protocol;
 	switch(prot) //смотри что за пакет пришел
 	{
@@ -354,10 +357,6 @@ int packetHandler(char *bufer, int bufLen)
 
 			if (status.ipHeader->daddr != status.groupAddr.sin_addr.s_addr) break;
 			if (ntohs(status.udpHeader->dest) != status.igmpGroupPort) break;                   //ports loocking
-
-
-			// далше проходят пакеты udp от ip группы пока больше проверок нет
-			//думаю может стоит дяобвить проверку на наш ли ip пакет пришел чтоб какиенить левые данные не пролезли ?
 
 						//заполняем стоку packetInfo инфой о пакете
 			/*sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
@@ -387,8 +386,9 @@ int packetHandler(char *bufer, int bufLen)
                     writeDataToFile( status.saveData, status.dataLen); // пишем пакет в файл
                     break;
                 case mode_infinity:
-                        printf(" infinityMode work! ");
-
+                       // printf(" infinityMode work! ");
+						checkPack();
+						write(status.uxSock, &hPack, sizeof(HandledPacket));
                     break;
                 default:
                     status.saveData = bufer;
@@ -401,17 +401,32 @@ int packetHandler(char *bufer, int bufLen)
 		case IPPROTO_IGMP:
 					// все тоже что и с udp только с выборкой типа сообщения
 
-			sprintf(packetInfo, "%02i:%02i:%02i %i.%02i.%02i ",timeS->tm_hour,timeS->tm_min,
-								timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday);
-			strcpy(packetInfo, "Lenght ");
-			sprintf((packetInfo + strlen(packetInfo)),"%d : ", htons(status.ipHeader->tot_len));
-			if (status.igmpHeader->igmp_type == IGMP_V2_MEMBERSHIP_REPORT)
-			{
-				strcpy (packetInfo + strlen(packetInfo), "IGMP_MEMBERSHIP_REPORT ");
+			switch( status.workMode )
+            {
+                case mode_ethernet:
+					writePackToPcap(bufer, bufLen);
+					break;
+                case mode_video:
+					saveIgmpPacket(bufer, bufLen);
+					break;
+                case mode_infinity:
+					checkPack();
+					write(status.uxSock, &hPack, sizeof(HandledPacket));
+                break;
+                default:
+                break;
 			}
+			//sprintf(packetInfo, "%02i:%02i:%02i %i.%02i.%02i ",timeS->tm_hour,timeS->tm_min,
+			//					timeS->tm_sec,timeS->tm_year+1900,timeS->tm_mon+1,timeS->tm_mday);
+			//strcpy(packetInfo, "Lenght ");
+			//sprintf((packetInfo + strlen(packetInfo)),"%d : ", htons(status.ipHeader->tot_len));
+			//if (status.igmpHeader->igmp_type == IGMP_V2_MEMBERSHIP_REPORT)
+			//{
+			//	strcpy (packetInfo + strlen(packetInfo), "IGMP_MEMBERSHIP_REPORT ");
+			//}
 			if (status.igmpHeader->igmp_type == IGMP_MEMBERSHIP_QUERY)
 			{
-				strcpy (packetInfo + strlen(packetInfo), "IGMP_MEMBERSHIP_QUERY ");
+				//strcpy (packetInfo + strlen(packetInfo), "IGMP_MEMBERSHIP_QUERY ");
 				if (status.igmpSubscibe == 1)
 				{
 					if (igmpSend(IGMPV2_HOST_MEMBERSHIP_REPORT, &status) <= 0)
@@ -424,23 +439,20 @@ int packetHandler(char *bufer, int bufLen)
 				// тут будет посылатся подтверждение IGMP_V2_MEMBERSHIP_REPORT
 				// при условии что не от сюда ушел запрс IGMP_V2_LEAVE_GROUP
 			}
-			if (status.igmpHeader->igmp_type == IGMP_V2_LEAVE_GROUP)
-			{
-				strcpy (packetInfo + strlen(packetInfo), "IGMP_LEAVE_GROUP ");
-			}
+			//if (status.igmpHeader->igmp_type == IGMP_V2_LEAVE_GROUP)
+			//{
+			//	strcpy (packetInfo + strlen(packetInfo), "IGMP_LEAVE_GROUP ");
+			//}
 
-			strcpy (packetInfo + strlen(packetInfo), inet_ntoa(status.igmpHeader->igmp_group));
+			//strcpy (packetInfo + strlen(packetInfo), inet_ntoa(status.igmpHeader->igmp_group));
 
-			if (status.workMode == mode_video) saveIgmpPacket(bufer, bufLen);
-			else writePackToPcap(bufer, bufLen);
 
-			printf("%s %s", packetInfo, "\n");
 			break;
 
 							// остальное вроде не нужно
 		case IPPROTO_TCP:
 			//logging("got TCP pack");
-			write(status.uxSock, "got TCP pack", 13);
+			//write(status.uxSock, "got TCP pack", 13);
 			break;
 		case IPPROTO_ICMP:
 			//logging("got icmp pack");
@@ -477,6 +489,41 @@ void quit( char * message)
 
 //-------------------------------------------------------------------------------------
 
+void checkPack()
+{
+/*
+	* uint8_t protocol;
+	* struct timeval timePackRecive;
+	* int countScrambled;
+	* uint8_t igmpMessage;
+	* uint8_t checkSummError;
+	* int error;
+	* int over;
+*/
+
+
+
+	memset(&hPack, 0, sizeof(HandledPacket));
+	hPack.protocol = status.ipHeader->protocol;
+	hPack.checkSummError = ip_check_sum(status.ipHeader, status.ipHeader->ihl*4);
+	if (status.ipHeader->protocol == IPPROTO_IGMP)
+	{
+		hPack.igmpMessage = status.igmpHeader->igmp_type;
+		return 1;
+	}
+
+	uint8_t *data = status.udpHeader + sizeof(struct udphdr);
+	uint8_t * scrambledByte = data + sizeHeaderSubData - 1;
+	int dataLen = status.udpHeader->len - sizeof(struct udphdr);
+	int countParts = dataLen/sizeOfSubData;
+	if ( dataLen%sizeOfSubData ) hPack.error = pack_error_size;
+
+	for (int i = 0; i < countParts; i++)
+	{
+		if ((*scrambledByte) & ScrambledMask) hPack.countScrambled++;
+		scrambledByte += sizeOfSubData;
+	}
+}
 
 
 //-------------------------------------------------------------------------------------

@@ -1,14 +1,24 @@
 #ifndef PROC_PACK_H
 #define PROC_PACK_H
 
+#include "stdint.h"
+#include <time.h>
 
-typedef struct 
+enum errorsHandledPacket
 {
-	int protocol;
-	int inTimeSec;
-	int inTimeMs;
+	pack_error_size = 1
+};
+
+typedef struct
+{
+	uint8_t protocol;
+	struct timeval timePackRecive;
 	int countScrambled;
-	int igmpMessage;
+	uint8_t igmpMessage;
+	uint8_t checkSummError;
+	int error;
+	int over;
+
 }HandledPacket;
 
 
