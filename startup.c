@@ -313,7 +313,7 @@ pos7:                                       //igmp port
     if (!scanf("%s", tempStr)) goto pos7;
     temp = atoi(tempStr);
     if (temp <= 0) goto pos7;
-    state->igmpGroupPort = htons(temp);
+    state->igmpGroupPort = temp;
     printf("you enter %i \n",temp);
     printf("igmp porn now is %i  \n", state->igmpGroupPort);
 
