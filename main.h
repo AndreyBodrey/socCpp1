@@ -20,6 +20,7 @@ void clearBuf(char * buff);
 int packFiltr(char * bufer, int len);
 void checkIgmp(char *buf, int bufLen);
 void checkUdp(char *buf, int bufLen);
+int writePackToBase();
 
 void quit(char * str);
 

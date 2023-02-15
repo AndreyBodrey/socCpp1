@@ -36,6 +36,10 @@
 		<Unit filename="1.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="dbWork.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="dbWork.h" />
 		<Unit filename="description.txt" />
 		<Unit filename="igmp.c">
 			<Option compilerVar="CC" />
@@ -52,10 +56,18 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="saveToFiles.h" />
+		<Unit filename="sqlite3.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sqlite3.h" />
 		<Unit filename="startup.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="startup.h" />
+		<Unit filename="timeArray.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="timeArray.h" />
 		<Extensions />
 	</Project>
 </CodeBlocks_project_file>

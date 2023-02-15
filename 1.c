@@ -9,10 +9,12 @@
 	перехват сигналов завершения для отписки
 	* пройтись по коду и посмотреть где нужен правильный выход из программы
 	* удалить лишние режимы сохранения, оставить только видео и полностью пакеты
-	сделать сщхранение igmp в формате рсар
-	фильтр igmp пакетов !!!
-	далее работа с сокетом юникс
-
+	* сделать сщхранение пакетов igmp в файл рсар
+	* фильтр igmp пакетов !!!
+	* далее работа с сокетом юникс удалить ни фик // закоментил
+	* переделать функцию checkPack()
+	* добавить функции работы с базой
+	разобратся с пидом создаваемого треда
 */
 
 //#include <asm-generic/socket.h>
@@ -20,6 +22,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <linux/if_ether.h>
@@ -34,6 +37,7 @@
 //#include <netinet/igmp.h>
 #include <netinet/udp.h>
 #include <time.h>
+#include"sys/time.h"
 #include "linux/igmp.h"
 //#include <linux/if.h>
 #include <sys/ioctl.h>
@@ -48,34 +52,41 @@
 #include "saveToFiles.h"
 #include "igmpwork.h"
 #include "processedPacket.h"
+#include "sqlite3.h"
+#include "timeArray.h"
+#include "dbWork.h"
 
 
 #define PACK_BUF_LEN 0xffff //макс длинна пакета, может столько и не надо, сколько там в сети максималка?
 #define ADDRESS "/tmp/mySuperSocket.socket"
-
+#define COUNT_LAST_PACKS 16
+#define PERCENT_UP_TIME 1.1f
 
 //global varibles
 struct Status status;
 thrd_data* threadData;
 HandledPacket hPack;
-/*
+static struct timeval lastPackTime;
+sqlite3 *dataBase = NULL;
+
 int main()
 {
-    int pid = startWork();
+
+    int pid = istartWork();
     printf("started, pid = %i \n", pid);
-    sleep(3);
-    stopWork();
+    sleep(20);
+    istopWork();
 
     return 1;
 }
-*/
+
 //--------------------------------------------------------------------------------------------------------
 int istartWork()
 {
-    struct sockaddr_un sadr;
+    //struct sockaddr_un sadr;
     char command[] = "work";
 
-    memset(&sadr, 0, sizeof(struct sockaddr_un));
+   /* memset(&sadr, 0, sizeof(struct sockaddr_un));
     sadr.sun_family = AF_UNIX;
     strncpy(sadr.sun_path, ADDRESS,sizeof(sadr.sun_path)-1);
     status.uxSock = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -89,7 +100,7 @@ int istartWork()
     {
         perror("trying to connect...\n");
         sleep(1);
-    }
+    }*/
 
     threadData = (thrd_data*)malloc(sizeof(thrd_data));
     threadData->command = (char*)malloc(strlen(command)+1);
@@ -105,13 +116,12 @@ int istartWork()
 
     pthread_t *pthread = (pthread_t*)malloc(sizeof(pthread_t));
 
-
-
-
+    timeArrInit(COUNT_LAST_PACKS);
+    createDbConnection();
 
     pthread_create(pthread, NULL, mainWork, threadData);
-
     pthread_detach(*pthread);
+
     unsigned long int threadPID = *pthread;
     int rez = threadPID & 0xffffffff;
 
@@ -128,9 +138,78 @@ int istopWork()
     free(threadData->command);
     free(threadData->countd);
     free(threadData);
+    closeDb();
     printf("data deleted\n");
     close(status.uxSock);
+    if ( timeArrIsInited() ) timeArrDeinit();
     return 1;
+}
+//-------------------------------------------------------------------------------------------
+
+void startSettings()
+{
+    thrd_data data;
+    char comand[] = "setup";
+    char countstr[] = "0";
+
+    data.workMode = 0;
+    data.command = comand;
+    data.countd = countstr;
+
+    mainWork(&data);
+}
+//-------------------------------------------------------------------------------------------
+
+void unsubscribe()
+{
+    thrd_data data;
+    char comand[] = "l";
+    char countstr[] = "0";
+
+    data.workMode = 0;
+    data.command = comand;
+    data.countd = countstr;
+
+    mainWork(&data);
+
+
+}
+//--------------------------------------------------------------------------------------------
+
+void getVideo(int sec) //запись видео в блокирующем режиме
+{
+    thrd_data data;
+    char comandBuf[10];
+    char comand[] = "vid";
+    //void* itoa(int input, char *buffer, int radix)
+
+    sprintf(comandBuf, "%i", sec);
+
+
+
+    data.workMode = 0;
+    data.command = comand;
+    data.countd = comandBuf;
+
+    mainWork(&data);
+
+}
+//----------------------------------------------------------------------------------------------
+
+void getPcapFile(int countPacks)
+{
+    thrd_data data;
+    char comandBuf[10];
+    char comand[] = "pack";
+
+    sprintf(comandBuf, "%i", countPacks);
+
+    data.workMode = 0;
+    data.command = comand;
+    data.countd = comandBuf;
+
+    mainWork(&data);
+
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -158,9 +237,10 @@ void* mainWork(void *thData)
     {
         changeSettingsInterface(&status);
         saveSettings(&status);
+        return NULL;
     }
-
     setFileName(&status);
+
 		//этот тип сокета перехватывает все пакеты с заголовком ethernet
 		//если я правильно понял, то пакеты с тетевухи летят на прямую и сюда и в ядро
 	errno = 0;
@@ -241,6 +321,7 @@ void* mainWork(void *thData)
     status.ipHeader = (struct iphdr*)(status.packetData + sizeof(struct ethhdr));
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 	while (loop)	 // пошла работа
 	{
 
@@ -252,12 +333,15 @@ void* mainWork(void *thData)
             quit("stoped ");
             return NULL;
         }
+
+
 		int reciveBytes = 0;
 		reciveBytes = recvfrom(status.socketFd, buf,sizeof(buf),0,0,0); // получаем
+		gettimeofday(&(hPack.timePackRecive), NULL);
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
 
-		if (gettimeofday(&(hPack.timePackRecive)))
+		if (gettimeofday(&(hPack.timePackRecive), NULL))
 			perror ("error to get time - gettimeofday ");
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
@@ -297,15 +381,16 @@ void* mainWork(void *thData)
 
 	loop = 20; // or 60 sec or 60 packs
 
-	while (loop)	 // пошла работа
+	while (loop)
 	{
 
 		int reciveBytes = 0;
 		reciveBytes = recvfrom(status.socketFd, buf,sizeof(buf),0,0,0); // получаем
+		gettimeofday(&(hPack.timePackRecive), NULL);
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
 
-		if (gettimeofday(&(status.packReciveTime)))
+		if (gettimeofday(&(status.packReciveTime), NULL))
 			perror ("error to get time - gettimeofday ");
 
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
@@ -345,18 +430,39 @@ int packetHandler(char *bufer, int bufLen)
 {
 
     int result = 0;
-    time_t timeNow = time(NULL); // получаем локальное время с секундах (от начала нашей эры  плюс 1900 лет )  ))) если я правильно понял
-	struct tm * timeS = localtime(&timeNow); // переводим время в структуру с кторорой можно получить нормальные часы, минуты итд
-	char packetInfo[200] = {0,}; // буфер для формирования строки информиции об пакете
+   // time_t timeNow = time(NULL); // получаем локальное время с секундах (от начала нашей эры  плюс 1900 лет )  ))) если я правильно понял
 
-	uint8_t prot = status.ipHeader->protocol;
-	switch(prot) //смотри что за пакет пришел
+	hPack.localTime = *localtime(&(hPack.timePackRecive.tv_sec));
+//	char packetInfo[200] = {0,}; // буфер для формирования строки информиции об пакете
+
+	//uint8_t prot = status.ipHeader->protocol;
+	switch(status.ipHeader->protocol) //смотри что за пакет пришел
 	{
 		case IPPROTO_UDP:
-					//если пакет не от группы на которую подписались, то на хер
-
+                            // фильтр по айпи и порту
 			if (status.ipHeader->daddr != status.groupAddr.sin_addr.s_addr) break;
-			if (ntohs(status.udpHeader->dest) != status.igmpGroupPort) break;                   //ports loocking
+			if (ntohs(status.udpHeader->dest) != status.igmpGroupPort) break;
+
+                        // работа с временем получения пакета
+             int difTimeUs = (int)(hPack.timePackRecive.tv_usec - lastPackTime.tv_usec);
+             int difTimeS = (int)(hPack.timePackRecive.tv_sec - lastPackTime.tv_sec);
+             if (difTimeS < 0) difTimeS += 59;
+             if (difTimeS > 1)
+             {
+                 printf("packet late on %i sec\n",difTimeS);
+                 hPack.late = difTimeS + difTimeS * 1000000;
+             }
+             else
+             {
+                 if (difTimeUs < 0) difTimeUs += 1000000;
+                 timeArrInsert(difTimeUs);
+                 if (difTimeUs > timeArrGetAverge() * PERCENT_UP_TIME)
+                    hPack.late = difTimeUs;
+                 else hPack.late = 0;
+             }
+             lastPackTime = hPack.timePackRecive;
+
+
 
 						//заполняем стоку packetInfo инфой о пакете
 			/*sprintf(packetInfo, "%02d:%02d:%02d %d.%02d.%02d ",timeS->tm_hour,timeS->tm_min,
@@ -386,13 +492,16 @@ int packetHandler(char *bufer, int bufLen)
                     writeDataToFile( status.saveData, status.dataLen); // пишем пакет в файл
                     break;
                 case mode_infinity:
-                       // printf(" infinityMode work! ");
+
 						checkPack();
-						write(status.uxSock, &hPack, sizeof(HandledPacket));
+						if (hPack.error != 0) // if errors write to base
+                        {
+                            if (writeErrToBase()) printf("error write data to base \n");
+                        }
                     break;
                 default:
-                    status.saveData = bufer;
-                    status.dataLen = bufLen;
+                  //  status.saveData = bufer;
+                 //   status.dataLen = bufLen;
                     break;
             }
 			//break;  //с udp закончили
@@ -400,6 +509,8 @@ int packetHandler(char *bufer, int bufLen)
 
 		case IPPROTO_IGMP:
 					// все тоже что и с udp только с выборкой типа сообщения
+            if (status.ipHeader->daddr != status.groupAddr.sin_addr.s_addr) break;
+            if (status.ipHeader->saddr != status.localAddr.sin_addr.s_addr) break;
 
 			switch( status.workMode )
             {
@@ -411,7 +522,8 @@ int packetHandler(char *bufer, int bufLen)
 					break;
                 case mode_infinity:
 					checkPack();
-					write(status.uxSock, &hPack, sizeof(HandledPacket));
+					//write(status.uxSock, &hPack, sizeof(HandledPacket));
+					// теперь надо писать в базу при ниличии ошибок
                 break;
                 default:
                 break;
@@ -436,8 +548,6 @@ int packetHandler(char *bufer, int bufLen)
                     }
 
 				}
-				// тут будет посылатся подтверждение IGMP_V2_MEMBERSHIP_REPORT
-				// при условии что не от сюда ушел запрс IGMP_V2_LEAVE_GROUP
 			}
 			//if (status.igmpHeader->igmp_type == IGMP_V2_LEAVE_GROUP)
 			//{
@@ -450,16 +560,19 @@ int packetHandler(char *bufer, int bufLen)
 			break;
 
 							// остальное вроде не нужно
-		case IPPROTO_TCP:
+		//case IPPROTO_TCP:
 			//logging("got TCP pack");
-			//write(status.uxSock, "got TCP pack", 13);
-			break;
-		case IPPROTO_ICMP:
+		//	write(status.uxSock, "got TCP pack", 13);
+		////	break;
+		//case IPPROTO_ICMP:
 			//logging("got icmp pack");
-			break;
-		default:;
+		//	break;
+		default:
+		    break;
 			//logging("got some packet");
 	}
+
+    memset(&hPack, 0, sizeof(HandledPacket));
     return result;
 
 }
@@ -494,25 +607,27 @@ void checkPack()
 /*
 	* uint8_t protocol;
 	* struct timeval timePackRecive;
+	struct tm localTime; //added
 	* int countScrambled;
 	* uint8_t igmpMessage;
 	* uint8_t checkSummError;
+	int late;
 	* int error;
 	* int over;
 */
 
 
 
-	memset(&hPack, 0, sizeof(HandledPacket));
+	//memset(&hPack, 0, sizeof(HandledPacket));
 	hPack.protocol = status.ipHeader->protocol;
-	hPack.checkSummError = ip_check_sum(status.ipHeader, status.ipHeader->ihl*4);
+	hPack.checkSummError = ip_check_sum((uint16_t*)status.ipHeader, (status.ipHeader->ihl*4));
 	if (status.ipHeader->protocol == IPPROTO_IGMP)
 	{
 		hPack.igmpMessage = status.igmpHeader->igmp_type;
-		return 1;
+		return ;
 	}
 
-	uint8_t *data = status.udpHeader + sizeof(struct udphdr);
+	uint8_t *data = (uint8_t*)status.udpHeader + sizeof(struct udphdr);
 	uint8_t * scrambledByte = data + sizeHeaderSubData - 1;
 	int dataLen = status.udpHeader->len - sizeof(struct udphdr);
 	int countParts = dataLen/sizeOfSubData;
@@ -523,8 +638,8 @@ void checkPack()
 		if ((*scrambledByte) & ScrambledMask) hPack.countScrambled++;
 		scrambledByte += sizeOfSubData;
 	}
+	if (hPack.countScrambled) hPack.error = pack_error_scrambled;
+    if (hPack.late) hPack.error =pack_error_time;
 }
-
-
 //-------------------------------------------------------------------------------------
 
