@@ -74,7 +74,7 @@ int main()
 
     int pid = istartWork();
     printf("started, pid = %i \n", pid);
-    sleep(20);
+    sleep(2220);
     istopWork();
 
     return 1;
@@ -85,6 +85,7 @@ int istartWork()
 {
     //struct sockaddr_un sadr;
     char command[] = "work";
+    lastPackTime.tv_sec = 0;
 
    /* memset(&sadr, 0, sizeof(struct sockaddr_un));
     sadr.sun_family = AF_UNIX;
@@ -217,6 +218,7 @@ void getPcapFile(int countPacks)
 
 void* mainWork(void *thData)
 {
+    unsigned long numberOfPacketsSeen = 0;
     threadData = thData;
 	char buf[PACK_BUF_LEN] = {0,};	//создаем и заполняем нулями буфер для пакета
 
@@ -319,7 +321,7 @@ void* mainWork(void *thData)
     uint32_t loop = status.workModeParam;
     time_t lastTime = time(NULL);
     status.ipHeader = (struct iphdr*)(status.packetData + sizeof(struct ethhdr));
-
+    int lastmin = -1;
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 	while (loop)	 // пошла работа
@@ -338,11 +340,34 @@ void* mainWork(void *thData)
 		int reciveBytes = 0;
 		reciveBytes = recvfrom(status.socketFd, buf,sizeof(buf),0,0,0); // получаем
 		gettimeofday(&(hPack.timePackRecive), NULL);
+
+
+		if (gettimeofday(&(status.packReciveTimeTimeval), NULL))
+			perror ("error to get time - gettimeofday ");
+        status.packReciveTimeTm = *localtime(&(status.packReciveTimeTimeval.tv_sec));
+
+		if (lastmin < 0)
+            lastmin = status.packReciveTimeTm.tm_min;
+        else if (lastmin != status.packReciveTimeTm.tm_min) //ежеминутное событие
+        {
+            printf("1 min go... %ul packets seen\n",numberOfPacketsSeen);
+            lastmin = status.packReciveTimeTm.tm_min;
+            if (lastPackTime.tv_sec == 0)
+            {
+                printf("no data strem! %i:%i:%i\n", status.packReciveTimeTm.tm_hour, status.packReciveTimeTm.tm_min, status.packReciveTimeTm.tm_sec);
+            }
+            else
+            {
+                int dif = hPack.localTime.tm_sec - lastPackTime.tv_sec;
+                if (dif > 5 ) printf("no data strem! %i:%i:%i\n", status.packReciveTimeTm.tm_hour, status.packReciveTimeTm.tm_min, status.packReciveTimeTm.tm_sec);
+            }
+
+        }
+
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
+        numberOfPacketsSeen++;
 
-		if (gettimeofday(&(hPack.timePackRecive), NULL))
-			perror ("error to get time - gettimeofday ");
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 
@@ -379,7 +404,7 @@ void* mainWork(void *thData)
         return NULL;
     }
 
-	loop = 20; // or 60 sec or 60 packs
+	loop = 20; // or 20 sec or 20 packs
 
 	while (loop)
 	{
@@ -390,7 +415,7 @@ void* mainWork(void *thData)
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
 
-		if (gettimeofday(&(status.packReciveTime), NULL))
+		if (gettimeofday(&(status.packReciveTimeTimeval), NULL))
 			perror ("error to get time - gettimeofday ");
 
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
