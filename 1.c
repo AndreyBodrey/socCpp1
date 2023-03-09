@@ -19,6 +19,8 @@
 
 //#include <asm-generic/socket.h>
 
+
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,7 +62,7 @@
 #define PACK_BUF_LEN 0xffff //макс длинна пакета, может столько и не надо, сколько там в сети максималка?
 #define ADDRESS "/tmp/mySuperSocket.socket"
 #define COUNT_LAST_PACKS 16
-#define PERCENT_UP_TIME 1.1f
+#define PERCENT_UP_TIME 1.5f
 
 //global varibles
 struct Status status;
@@ -215,10 +217,12 @@ void getPcapFile(int countPacks)
 
 //-------------------------------------------------------------------------------------------------------------------------------
 //int main (int argc, char *argv[])
+unsigned long numberOfPacketsSeen = 0;
+int latte = 0;
 
 void* mainWork(void *thData)
 {
-    unsigned long numberOfPacketsSeen = 0;
+
     threadData = thData;
 	char buf[PACK_BUF_LEN] = {0,};	//создаем и заполняем нулями буфер для пакета
 
@@ -350,7 +354,9 @@ void* mainWork(void *thData)
             lastmin = status.packReciveTimeTm.tm_min;
         else if (lastmin != status.packReciveTimeTm.tm_min) //ежеминутное событие
         {
-            printf("1 min go... %ul packets seen\n",numberOfPacketsSeen);
+			if (status.igmpSubscibe) igmpSend(IGMPV2_HOST_MEMBERSHIP_REPORT, &status);
+            printf("1 min go... %ul packets seen, late packs %i \n",numberOfPacketsSeen, latte);
+            numberOfPacketsSeen = latte = 0;
             lastmin = status.packReciveTimeTm.tm_min;
             if (lastPackTime.tv_sec == 0)
             {
@@ -366,12 +372,13 @@ void* mainWork(void *thData)
 
 		// 20 минимальный размер пакета
 		if (reciveBytes < 20 && reciveBytes > PACK_BUF_LEN)	continue;
-        numberOfPacketsSeen++;
+
 
 		status.udpHeader = (struct udphdr*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 		status.igmpHeader = (struct igmp*)(buf + sizeof(struct ethhdr) + status.ipHeader->ihl* 4);
 
 		dec = packetHandler(buf, reciveBytes); //если все ок то обрабатываем
+
         clearBuf(buf);
         time_t timeNow = time(NULL);
         switch( status.workMode )
@@ -458,6 +465,8 @@ int packetHandler(char *bufer, int bufLen)
    // time_t timeNow = time(NULL); // получаем локальное время с секундах (от начала нашей эры  плюс 1900 лет )  ))) если я правильно понял
 
 	hPack.localTime = *localtime(&(hPack.timePackRecive.tv_sec));
+	hPack.error = 0;
+	hPack.late = 0;
 //	char packetInfo[200] = {0,}; // буфер для формирования строки информиции об пакете
 
 	//uint8_t prot = status.ipHeader->protocol;
@@ -466,8 +475,8 @@ int packetHandler(char *bufer, int bufLen)
 		case IPPROTO_UDP:
                             // фильтр по айпи и порту
 			if (status.ipHeader->daddr != status.groupAddr.sin_addr.s_addr) break;
-			if (ntohs(status.udpHeader->dest) != status.igmpGroupPort) break;
-
+			if (status.udpHeader->dest != status.igmpGroupPort) break;
+			numberOfPacketsSeen++;
                         // работа с временем получения пакета
              int difTimeUs = (int)(hPack.timePackRecive.tv_usec - lastPackTime.tv_usec);
              int difTimeS = (int)(hPack.timePackRecive.tv_sec - lastPackTime.tv_sec);
@@ -475,14 +484,18 @@ int packetHandler(char *bufer, int bufLen)
              if (difTimeS > 1)
              {
                  printf("packet late on %i sec\n",difTimeS);
-                 hPack.late = difTimeS + difTimeS * 1000000;
+                 hPack.late = difTimeUs + difTimeS * 1000000;
              }
              else
              {
                  if (difTimeUs < 0) difTimeUs += 1000000;
                  timeArrInsert(difTimeUs);
-                 if (difTimeUs > timeArrGetAverge() * PERCENT_UP_TIME)
+                 int ttemp = (int)((float)timeArrGetAverge() * PERCENT_UP_TIME);
+                 if (difTimeUs > ttemp)
+                 {
                     hPack.late = difTimeUs;
+                    latte++;
+				 }
                  else hPack.late = 0;
              }
              lastPackTime = hPack.timePackRecive;
@@ -521,7 +534,8 @@ int packetHandler(char *bufer, int bufLen)
 						checkPack();
 						if (hPack.error != 0) // if errors write to base
                         {
-                            if (writeErrToBase()) printf("error write data to base \n");
+                            if (writeErrToBase() == 1)
+								printf("error write data to base \n");
                         }
                     break;
                 default:
@@ -529,10 +543,11 @@ int packetHandler(char *bufer, int bufLen)
                  //   status.dataLen = bufLen;
                     break;
             }
-			//break;  //с udp закончили
+			break;  //с udp закончили
 
 
 		case IPPROTO_IGMP:
+		printf("igmp catch \n");
 					// все тоже что и с udp только с выборкой типа сообщения
             if (status.ipHeader->daddr != status.groupAddr.sin_addr.s_addr) break;
             if (status.ipHeader->saddr != status.localAddr.sin_addr.s_addr) break;
@@ -547,6 +562,8 @@ int packetHandler(char *bufer, int bufLen)
 					break;
                 case mode_infinity:
 					checkPack();
+					if (writeErrToBase() == 1)
+								printf("error write data to base \n");
 					//write(status.uxSock, &hPack, sizeof(HandledPacket));
 					// теперь надо писать в базу при ниличии ошибок
                 break;
@@ -654,7 +671,7 @@ void checkPack()
 
 	uint8_t *data = (uint8_t*)status.udpHeader + sizeof(struct udphdr);
 	uint8_t * scrambledByte = data + sizeHeaderSubData - 1;
-	int dataLen = status.udpHeader->len - sizeof(struct udphdr);
+	int dataLen = ntohs(status.udpHeader->len) - sizeof(struct udphdr);
 	int countParts = dataLen/sizeOfSubData;
 	if ( dataLen%sizeOfSubData ) hPack.error = pack_error_size;
 

@@ -6,6 +6,7 @@
 #include "sqlite3.h"
 
 
+
 static void insertStrBuild(char *str);
 
 
@@ -19,6 +20,8 @@ extern HandledPacket hPack;
 
 int createDbConnection() //rerurn 1 if error
 {
+char jou[] = "PRAGMA journal_mode = OFF;";
+
     char *createT = "CREATE TABLE IF NOT EXISTS PacksEr2 ("
                     "data_year INTEGER,"    //
                     "data_month INTEGER,"   //
@@ -32,7 +35,7 @@ int createDbConnection() //rerurn 1 if error
                     "igmpMessage INTEGER,"
                     "checkSummErr INTEGER,"
                     "late INTEGER,"
-                    "error INTEGER);";
+                    "error INTEGER)";
 
     int rc = sqlite3_open(DB_PATH, &dataBase);
     if (rc != SQLITE_OK)
@@ -42,6 +45,14 @@ int createDbConnection() //rerurn 1 if error
         return 1;
     }
 
+	rc = sqlite3_exec(dataBase, jou, 0, 0, &sqlError);
+	    if (rc != SQLITE_OK)
+    {
+        printf( "Journal mode setup error %s\n", sqlite3_errmsg(dataBase));
+        sqlite3_close(dataBase);
+        sqlite3_free(sqlError);
+        return 1;
+    }
     rc = sqlite3_exec(dataBase, createT, 0, 0, &sqlError);
     if (rc != SQLITE_OK)
     {
@@ -66,7 +77,7 @@ int writeErrToBase() //rerurn 1 if error
         sqlite3_close(dataBase);
         return 1;
     }
-    return 0;
+    return -1;
 }
 //--------------------------------------------------------------------------
 
@@ -74,7 +85,7 @@ static void insertStrBuild(char *str)
  {
      char *s = str;
 
-    memset(str,0,500);
+    memset(str,0,200);
     strcpy(str, "INSERT INTO PacksEr2 VALUES ("); // len 29
     s += 29;
 
