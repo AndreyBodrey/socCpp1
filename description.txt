@@ -2,7 +2,7 @@
 
    compile :
    
-   	sudo gcc -shared -Wall -fPIC -o libigmpwork.so.1.0.0.0 -Wl,-soname,libigmpwork.so.1 igmp.c startup.c saveToFiles.c params.c 1.c -lpthread
+   	sudo gcc -shared -Wall -fPIC -o libigmpwork.so.1.0.0.0 -Wl,-soname,libigmpwork.so.1 1.c dbWork.c igmp.c params.c saveToFiles.c sqlite3.c startup.c timeArray.c -lpthread
 
 	ln -s libigmpwork.so.1.0.0.0 libigmpwork.so
 	ln -s libigmpwork.so.1.0.0.0 libigmpwork.so.1

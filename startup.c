@@ -135,10 +135,10 @@ void setFileName(struct Status * state)
 
 void changeSettingsInterface(struct Status * state)
 {
-                                // mode
+     int temp = 0;
+    char tempStr[50];                              // mode
 pos1:
-    int temp = 0;
-    char tempStr[50];
+
 
    // goto pos5;
 

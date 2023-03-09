@@ -1,50 +1,51 @@
 
 #include <stdlib.h>
-
+#include "timeArray.h"
+/*
 static int timeArrCount;
 static int timeArrPointer;
 static unsigned int *timeArr;
 static int timeArrMax;
+*/
 
-int timeArrInit(int count) //return 0 if error else 1
+int timeArrInit(TimeArray * arr, int count) //return 0 if error else 1
 {
-    timeArrMax = count;
-    timeArrCount = 0;
-    timeArrPointer = 0;
-    timeArr = (unsigned int*) calloc(count, sizeof(int));
-    if (timeArr == NULL) return 0;
-
+    arr->timeArrMax = count;
+    arr->timeArrCount = 0;
+    arr->timeArrPointer = 0;
+    arr->timeArr = (unsigned int*) calloc(count, sizeof(int));
+    if (arr->timeArr == NULL) return 0;
     return 1;
 }
 //--------------------------------------------------------------
-void timeArrDeinit()
+void timeArrDeinit(TimeArray * arr)
 {
-    free(timeArr);
-    timeArr = NULL;
+    free(arr->timeArr);
+    arr->timeArr = NULL;
 }
 //--------------------------------------------------------------
-void timeArrInsert(unsigned int tim)
+void timeArrInsert(TimeArray * arr, unsigned int tim)
 {
-    timeArr[timeArrPointer] = tim;
-    timeArrPointer++;
-    if (timeArrPointer >= timeArrMax) timeArrPointer = 0;
-    if (timeArrCount < timeArrMax) timeArrCount++;
+    arr->timeArr[arr->timeArrPointer] = tim;
+    arr->timeArrPointer++;
+    if (arr->timeArrPointer >= arr->timeArrMax) arr->timeArrPointer = 0;
+    if (arr->timeArrCount < arr->timeArrMax) arr->timeArrCount++;
 }
 //--------------------------------------------------------------
-unsigned int timeArrGetAverge()
+unsigned int timeArrGetAverge(TimeArray * arr)
 {
     unsigned int result = 0;
     int i = 0;
     do
     {
-        result += timeArr[i];
+        result += arr->timeArr[i];
         i++;
-    } while(i < timeArrCount);
-    return result / timeArrCount;
+    } while(i < arr->timeArrCount);
+    return result / arr->timeArrCount;
 }
 //--------------------------------------------------------------
-int timeArrIsInited()
+int timeArrIsInited(TimeArray * arr)
 {
-    if (timeArr != NULL) return 1;
+    if (arr->timeArr != NULL) return 1;
     else return 0;
 }

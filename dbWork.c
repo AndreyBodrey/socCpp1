@@ -10,7 +10,8 @@
 static void insertStrBuild(char *str);
 
 
-#define DB_PATH "dataBase.db1"
+#define DB_PATH "dataBase.db2"
+#define SQL_STR_LEN 200
 
 
 static char *sqlError;
@@ -20,22 +21,17 @@ extern HandledPacket hPack;
 
 int createDbConnection() //rerurn 1 if error
 {
-char jou[] = "PRAGMA journal_mode = OFF;";
+	char noJournal[] = "PRAGMA journal_mode = OFF;";
 
     char *createT = "CREATE TABLE IF NOT EXISTS PacksEr2 ("
-                    "data_year INTEGER,"    //
-                    "data_month INTEGER,"   //
-                    "data_day INTEGER,"     //
-                    "time_hour INTEGER,"    //
-                    "time_min INTEGER,"     //
-                    "time_sec INTEGER,"     //
-                    "time_usec INTEGER,"    //
+                    "time_unix_sec INTEGER,"
+                    "time_usec INTEGER,"
                     "protocol INTEGER,"
-                    "scrabled INTEGER,"
+                    "scrambled INTEGER,"
                     "igmpMessage INTEGER,"
                     "checkSummErr INTEGER,"
                     "late INTEGER,"
-                    "error INTEGER)";
+                    "error INTEGER);";
 
     int rc = sqlite3_open(DB_PATH, &dataBase);
     if (rc != SQLITE_OK)
@@ -45,7 +41,7 @@ char jou[] = "PRAGMA journal_mode = OFF;";
         return 1;
     }
 
-	rc = sqlite3_exec(dataBase, jou, 0, 0, &sqlError);
+	rc = sqlite3_exec(dataBase, noJournal, 0, 0, &sqlError);
 	    if (rc != SQLITE_OK)
     {
         printf( "Journal mode setup error %s\n", sqlite3_errmsg(dataBase));
@@ -67,7 +63,7 @@ char jou[] = "PRAGMA journal_mode = OFF;";
 
 int writeErrToBase() //rerurn 1 if error
 {
-    char sqlStr[200] = {0,};
+    char sqlStr[SQL_STR_LEN] = {0,};
     insertStrBuild(sqlStr);
     int rc = sqlite3_exec(dataBase, sqlStr, 0, 0, &sqlError);
     if (rc != SQLITE_OK )
@@ -85,15 +81,12 @@ static void insertStrBuild(char *str)
  {
      char *s = str;
 
-    memset(str,0,200);
+    memset(str, 0, SQL_STR_LEN);
     strcpy(str, "INSERT INTO PacksEr2 VALUES ("); // len 29
     s += 29;
 
         /// time insert
-    sprintf(s,"%i,%i,%i,%i,%i,%i,%i,",
-            hPack.localTime.tm_year+1900, hPack.localTime.tm_mon+1, hPack.localTime.tm_mday ,
-            hPack.localTime.tm_hour, hPack.localTime.tm_min, hPack.localTime.tm_sec ,
-            (int)hPack.timePackRecive.tv_usec );
+    sprintf(s,"%i,%i,", (int)hPack.timePackRecive.tv_sec, (int)hPack.timePackRecive.tv_usec );
 
     s = str + strlen(str);
 

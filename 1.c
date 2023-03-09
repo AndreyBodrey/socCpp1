@@ -19,8 +19,6 @@
 
 //#include <asm-generic/socket.h>
 
-
-
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,7 +68,9 @@ thrd_data* threadData;
 HandledPacket hPack;
 static struct timeval lastPackTime;
 sqlite3 *dataBase = NULL;
-
+TimeArray udpTimeArr;
+TimeArray igmpTimeArr;
+/*
 int main()
 {
 
@@ -81,7 +81,7 @@ int main()
 
     return 1;
 }
-
+*/
 //--------------------------------------------------------------------------------------------------------
 int istartWork()
 {
@@ -119,7 +119,7 @@ int istartWork()
 
     pthread_t *pthread = (pthread_t*)malloc(sizeof(pthread_t));
 
-    timeArrInit(COUNT_LAST_PACKS);
+	timeArrInit( &udpTimeArr, COUNT_LAST_PACKS);
     createDbConnection();
 
     pthread_create(pthread, NULL, mainWork, threadData);
@@ -135,6 +135,11 @@ int istartWork()
 int istopWork()
 {
     printf("try to stop\n");
+    if (threadData->workMode == mode_stoped)
+    {
+        printf("thread is allready stoped ! \n");
+        return 0;
+    }
     threadData->workMode = mode_stop;
     while(threadData->workMode != mode_stoped);
     printf("process stoped\n");
@@ -144,7 +149,7 @@ int istopWork()
     closeDb();
     printf("data deleted\n");
     close(status.uxSock);
-    if ( timeArrIsInited() ) timeArrDeinit();
+    if ( timeArrIsInited(&udpTimeArr) ) timeArrDeinit(&udpTimeArr);
     return 1;
 }
 //-------------------------------------------------------------------------------------------
@@ -489,8 +494,8 @@ int packetHandler(char *bufer, int bufLen)
              else
              {
                  if (difTimeUs < 0) difTimeUs += 1000000;
-                 timeArrInsert(difTimeUs);
-                 int ttemp = (int)((float)timeArrGetAverge() * PERCENT_UP_TIME);
+                 timeArrInsert(&udpTimeArr, difTimeUs);
+                 int ttemp = (int)((float)timeArrGetAverge(&udpTimeArr) * PERCENT_UP_TIME);
                  if (difTimeUs > ttemp)
                  {
                     hPack.late = difTimeUs;
